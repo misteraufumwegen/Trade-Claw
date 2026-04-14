@@ -10,6 +10,12 @@ import logging
 import os
 from datetime import datetime
 
+# Import Backtest & Risk modules
+from app.backtest import BacktestSimulator
+from app.backtest.schemas import BacktestRequest, BacktestResponse, BacktestMetrics
+from app.risk import RiskEngine
+from app.risk.schemas import RiskVaultData
+
 # Configure logging
 logging.basicConfig(
     level=os.getenv('LOG_LEVEL', 'INFO'),
@@ -86,6 +92,169 @@ async def status():
             "timestamp": datetime.utcnow().isoformat(),
         }
     )
+
+
+# =====================================================
+# Backtest Endpoints
+# =====================================================
+
+backtest_simulator = BacktestSimulator(starting_capital=100.0)
+
+@app.post("/api/backtest", tags=["Backtest"], response_model=BacktestResponse)
+async def run_backtest(request: BacktestRequest):
+    """
+    Run on-demand backtest.
+    
+    Takes a list of trades and simulates them with realistic exit scenarios.
+    Returns performance metrics (Win Rate, Profit Factor, ROI, Sharpe Ratio, etc.)
+    """
+    try:
+        # Create fresh simulator instance
+        simulator = BacktestSimulator(starting_capital=request.starting_capital)
+        
+        # Convert request trades to dict format
+        trades = [t.dict() for t in request.trades]
+        
+        # Run backtest
+        result = simulator.run_backtest(trades, only_grades=request.only_grades)
+        
+        # Build response
+        metrics = BacktestMetrics(**result['metrics'])
+        
+        return BacktestResponse(
+            success=True,
+            timestamp=datetime.utcnow(),
+            trades_executed=result['trades_executed'],
+            metrics=metrics,
+            trades=result['trades'],
+            message=f"Backtest complete: {result['trades_executed']} trades executed"
+        )
+    
+    except Exception as e:
+        logger.error(f"Backtest failed: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Backtest error: {str(e)}")
+
+
+@app.get("/api/backtest/status", tags=["Backtest"])
+async def backtest_status():
+    """
+    Get backtest module status.
+    """
+    return {
+        "status": "ready",
+        "backtest_engine": "BacktestSimulator v1.0",
+        "starting_capital": 100.0,
+        "message": "Ready to run on-demand backtests"
+    }
+
+
+# =====================================================
+# Risk Engine Endpoints
+# =====================================================
+
+risk_engine = RiskEngine()
+
+@app.get("/api/risk/status", tags=["Risk"])
+async def risk_status():
+    """
+    Get risk engine status.
+    
+    Returns:
+    - Vault status (position size cap, drawdown limit, stop-loss immutability)
+    - Halted status
+    - Daily trade count
+    """
+    try:
+        status = risk_engine.get_status()
+        return {
+            "status": "healthy" if not status['halted'] else "halted",
+            "risk_engine": "RiskEngine v1.0",
+            "vault_status": status['vault_status'],
+            "halted": status['halted'],
+            "timestamp": status['timestamp']
+        }
+    except Exception as e:
+        logger.error(f"Risk status check failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/risk/pre-trade-check", tags=["Risk"])
+async def pre_trade_check(data: dict):
+    """
+    Pre-trade risk validation.
+    
+    Validates:
+    - Position size (max 10% of account)
+    - Drawdown (max -15% auto-halt)
+    - Daily trade limit (max 10 per day)
+    - Halt status
+    
+    Required fields:
+    - symbol: Trading symbol
+    - side: buy or sell
+    - quantity: Order quantity
+    - entry_price: Entry price
+    - account_equity: Current account equity
+    - stop_loss: Stop loss price
+    - take_profit: Take profit price
+    """
+    try:
+        approved, details = risk_engine.pre_trade_check(
+            symbol=data.get('symbol'),
+            side=data.get('side'),
+            quantity=data.get('quantity'),
+            entry_price=data.get('entry_price'),
+            account_equity=data.get('account_equity'),
+            stop_loss=data.get('stop_loss'),
+            take_profit=data.get('take_profit')
+        )
+        
+        return {
+            "approved": approved,
+            "details": details,
+            "timestamp": datetime.utcnow().isoformat()
+        }
+    except Exception as e:
+        logger.error(f"Pre-trade check failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/risk/execute-trade", tags=["Risk"])
+async def execute_trade(data: dict):
+    """
+    Execute trade with risk registration (stop-loss immutability, position tracking).
+    
+    Required fields:
+    - trade_id: Unique trade identifier
+    - symbol: Trading symbol
+    - side: buy or sell
+    - quantity: Order quantity
+    - entry_price: Entry price
+    - stop_loss: Stop loss price
+    - take_profit: Take profit price
+    """
+    try:
+        success = risk_engine.execute_trade(
+            trade_id=data.get('trade_id'),
+            symbol=data.get('symbol'),
+            side=data.get('side'),
+            quantity=data.get('quantity'),
+            entry_price=data.get('entry_price'),
+            stop_loss=data.get('stop_loss'),
+            take_profit=data.get('take_profit')
+        )
+        
+        if not success:
+            raise HTTPException(status_code=400, detail="Trade execution failed")
+        
+        return {
+            "success": True,
+            "message": f"Trade {data.get('trade_id')} registered with hardened limits",
+            "timestamp": datetime.utcnow().isoformat()
+        }
+    except Exception as e:
+        logger.error(f"Trade execution failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 # =====================================================
