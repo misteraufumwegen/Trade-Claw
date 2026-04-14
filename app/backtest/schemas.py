@@ -45,7 +45,7 @@ class BacktestMetrics(BaseModel):
     win_rate_pct: float
     gross_profit: float
     gross_loss: float
-    profit_factor: float
+    profit_factor: float = Field(..., description="Gross Profit / Gross Loss (capped at 999.99 if no losses)")
     avg_r: float
     max_drawdown_pct: float
     roi_pct: float

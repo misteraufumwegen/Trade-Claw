@@ -72,11 +72,11 @@ class BacktestResults:
         win_rate = (len(self.winning_trades) / total_trades * 100) if total_trades > 0 else 0.0
         
         # Profit Factor
-        # Handle zero loss case: if no losses, profit_factor is unbounded; return None for JSON safety
+        # Handle zero loss case: cap at 999.99 for JSON serialization safety
         if self.gross_loss > 0:
             profit_factor = self.gross_profit / self.gross_loss
         elif self.gross_profit > 0:
-            profit_factor = None  # Unbounded (perfect win rate with profit)
+            profit_factor = 999.99  # Perfect win rate (cap for JSON safety)
         else:
             profit_factor = 0.0  # No profit and no loss
         
