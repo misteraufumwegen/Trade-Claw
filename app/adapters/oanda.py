@@ -10,8 +10,7 @@ from datetime import datetime, timedelta
 import json
 
 import httpx
-from v20.client import Context
-from v20 import accounts, instruments, orders, trades, pricing
+from v20 import Context, account, instrument, order, trade, pricing
 
 from app.interfaces.broker import (
     BrokerInterface,
