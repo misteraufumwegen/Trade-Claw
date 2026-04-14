@@ -1,0 +1,68 @@
+version: '3.9'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: trading-bot-postgres
+    environment:
+      POSTGRES_USER: ${DB_USER:-trading_user}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-trading_password}
+      POSTGRES_DB: ${DB_NAME:-trading_bot}
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./migrations/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-trading_user}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - trading_network
+
+  redis:
+    image: redis:7-alpine
+    container_name: trading-bot-redis
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - trading_network
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: trading-bot-api
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${DB_USER:-trading_user}:${DB_PASSWORD:-trading_password}@postgres:5432/${DB_NAME:-trading_bot}
+      REDIS_URL: redis://redis:6379/0
+      ENVIRONMENT: ${ENVIRONMENT:-development}
+      SECRET_KEY: ${SECRET_KEY:-change-me-in-production}
+    ports:
+      - "${API_PORT:-8000}:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./app:/app/app
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    networks:
+      - trading_network
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  trading_network:
+    driver: bridge
