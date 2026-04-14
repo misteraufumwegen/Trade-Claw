@@ -11,3 +11,5 @@ pytest==7.4.3
 pytest-asyncio==0.21.1
 httpx==0.25.2
 ccxt==4.0.96
+aiohttp==3.9.1
+v20==3.16.0
