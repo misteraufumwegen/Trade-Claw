@@ -3,7 +3,7 @@ uvicorn[standard]==0.24.0
 pydantic==2.5.0
 sqlalchemy==2.0.23
 alembic==1.13.1
-psycopg[binary]==3.17.0
+psycopg[binary]==3.3.3
 redis==5.0.1
 python-dotenv==1.0.0
 cryptography==41.0.7
