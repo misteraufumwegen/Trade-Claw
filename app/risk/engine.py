@@ -1,325 +1,340 @@
-"""
-Risk Engine - Hardening & Limits Enforcement
+"""Risk validation engine - prevents high-risk orders and enforces drawdown limits."""
 
-Implements:
-1. Position Size Cap (10%, hard limit, enforced in DB)
-2. Drawdown Hard Stop (-15%, continuous monitoring, auto-halt)
-3. Stop-Loss Immutability (once set, cannot change)
-4. Risk Vault class (stores all limits)
-5. 20+ security tests coverage
-"""
-
-import logging
-from typing import Dict, List, Optional, Tuple
-from datetime import datetime, timedelta
+from dataclasses import dataclass
+from decimal import Decimal
+from typing import Optional, List
 from enum import Enum
 
-logger = logging.getLogger(__name__)
+from sqlalchemy.orm import Session
+
+from app.db.models import Order, Position, RiskLimit
 
 
 class RiskLevel(Enum):
-    """Risk level enumeration."""
-    HEALTHY = "healthy"
-    WARNING = "warning"
-    CRITICAL = "critical"
-    HALTED = "halted"
+    """Risk level classification."""
+    OK = "OK"
+    WARNING = "WARNING"
+    BREACH = "BREACH"
 
 
-class StopLossRecord:
-    """Immutable stop-loss record."""
-    
-    def __init__(self, trade_id: str, order_id: str, stop_loss: float, symbol: str):
-        self.trade_id = trade_id
-        self.order_id = order_id
-        self.stop_loss = stop_loss
-        self.symbol = symbol
-        self.set_at = datetime.utcnow()
-        self.immutable = True  # Once set, cannot change
-    
-    def attempt_change(self, new_sl: float) -> Tuple[bool, str]:
-        """
-        Attempt to change stop loss.
-        Returns: (success, reason)
-        """
-        if self.immutable:
-            return False, f"Stop-Loss IMMUTABLE: Cannot change from {self.stop_loss} to {new_sl}"
-        return True, "OK"
-
-
-class RiskVault:
-    """
-    Risk Vault - Central store for all risk limits and enforcement rules.
-    
-    Enforced Rules:
-    1. Position Size: Max 10% of account
-    2. Drawdown: Max -15% triggers auto-halt
-    3. Stop-Loss: Immutable once set
-    4. Daily Trades: Max 10 per day
-    """
-    
-    def __init__(self):
-        # Core Limits (hard-coded, cannot be changed)
-        self.position_size_cap_pct = 10.0  # Hard limit
-        self.drawdown_halt_pct = -15.0  # Hard stop
-        self.stop_loss_immutable = True  # Immutable flag
-        
-        # State
-        self.active = True
-        self.halted = False
-        self.halt_reason = None
-        self.halt_timestamp = None
-        
-        # Tracking
-        self.stop_loss_records: Dict[str, StopLossRecord] = {}
-        self.daily_trades: List[Dict] = []
-        self.equity_history: List[float] = []
-        
-        logger.info("🔒 Risk Vault initialized with hardened limits")
-        logger.info(f"   - Position Size Cap: {self.position_size_cap_pct}%")
-        logger.info(f"   - Drawdown Halt: {self.drawdown_halt_pct}%")
-        logger.info(f"   - Stop-Loss: IMMUTABLE")
-    
-    def register_stop_loss(self, trade_id: str, order_id: str, 
-                          stop_loss: float, symbol: str) -> bool:
-        """
-        Register a stop loss (immutable).
-        
-        Returns: True if successfully registered
-        """
-        if trade_id in self.stop_loss_records:
-            logger.warning(f"Stop-Loss already registered for {trade_id}")
-            return False
-        
-        record = StopLossRecord(trade_id, order_id, stop_loss, symbol)
-        self.stop_loss_records[trade_id] = record
-        
-        logger.info(f"✅ Stop-Loss registered & LOCKED for {trade_id}: {symbol} @ {stop_loss}")
-        return True
-    
-    def attempt_modify_stop_loss(self, trade_id: str, new_sl: float) -> Tuple[bool, str]:
-        """
-        Attempt to modify a registered stop loss.
-        
-        Returns: (success, reason)
-        """
-        if trade_id not in self.stop_loss_records:
-            return False, f"Stop-Loss not found for {trade_id}"
-        
-        record = self.stop_loss_records[trade_id]
-        success, reason = record.attempt_change(new_sl)
-        
-        if not success:
-            logger.warning(f"🚫 {reason}")
-        
-        return success, reason
-    
-    def validate_position_size(self, account_equity: float, 
-                              position_value: float) -> Tuple[bool, str, float]:
-        """
-        Validate position size against 10% cap.
-        
-        Returns: (valid, reason, position_size_pct)
-        """
-        if account_equity <= 0:
-            return False, "Invalid account equity", 0.0
-        
-        position_size_pct = (position_value / account_equity) * 100
-        
-        if position_size_pct > self.position_size_cap_pct:
-            reason = f"Position size {position_size_pct:.2f}% exceeds cap {self.position_size_cap_pct}%"
-            logger.error(f"🚫 {reason}")
-            return False, reason, position_size_pct
-        
-        logger.debug(f"✅ Position size valid: {position_size_pct:.2f}%")
-        return True, "OK", position_size_pct
-    
-    def check_drawdown(self, current_equity: float, peak_equity: float) -> Tuple[bool, str, float]:
-        """
-        Check drawdown and trigger halt if necessary.
-        
-        Returns: (safe, reason, drawdown_pct)
-        """
-        if peak_equity <= 0:
-            return True, "OK", 0.0
-        
-        drawdown_pct = ((current_equity - peak_equity) / peak_equity) * 100
-        
-        self.equity_history.append(current_equity)
-        
-        if drawdown_pct <= self.drawdown_halt_pct:  # -15%
-            self.halted = True
-            self.halt_reason = f"Drawdown {drawdown_pct:.2f}% exceeds limit {self.drawdown_halt_pct}%"
-            self.halt_timestamp = datetime.utcnow()
-            
-            logger.critical(f"🛑 DRAWDOWN HALT: {self.halt_reason}")
-            return False, self.halt_reason, drawdown_pct
-        
-        if drawdown_pct <= -10.0:  # Warning at -10%
-            logger.warning(f"⚠️  Drawdown warning: {drawdown_pct:.2f}%")
-        
-        return True, "OK", drawdown_pct
-    
-    def record_trade(self, trade_id: str, symbol: str, side: str, 
-                    quantity: float, entry_price: float, stop_loss: float,
-                    take_profit: float) -> bool:
-        """
-        Record a trade in daily tracker.
-        
-        Returns: True if recorded
-        """
-        today = datetime.utcnow().date()
-        
-        self.daily_trades.append({
-            'trade_id': trade_id,
-            'symbol': symbol,
-            'side': side,
-            'quantity': quantity,
-            'entry': entry_price,
-            'stop_loss': stop_loss,
-            'take_profit': take_profit,
-            'timestamp': datetime.utcnow(),
-            'date': today
-        })
-        
-        logger.info(f"📝 Trade recorded: {trade_id} {side} {quantity} {symbol} @ {entry_price}")
-        return True
-    
-    def get_daily_trade_count(self) -> int:
-        """Get number of trades executed today."""
-        today = datetime.utcnow().date()
-        return len([t for t in self.daily_trades if t['date'] == today])
-    
-    def is_halted(self) -> bool:
-        """Check if trading is halted."""
-        return self.halted
-    
-    def unhalt(self) -> bool:
-        """Manual unhalt (requires approval)."""
-        self.halted = False
-        self.halt_reason = None
-        self.halt_timestamp = None
-        logger.info("🟢 Trading resumed (MANUAL UNHALT)")
-        return True
-    
-    def get_vault_status(self) -> Dict:
-        """Get current vault status."""
-        return {
-            'position_size_cap_pct': self.position_size_cap_pct,
-            'drawdown_halt_pct': self.drawdown_halt_pct,
-            'stop_loss_immutable': self.stop_loss_immutable,
-            'active': self.active,
-            'halted': self.halted,
-            'halt_reason': self.halt_reason,
-            'halt_timestamp': self.halt_timestamp.isoformat() if self.halt_timestamp else None,
-            'daily_trades': self.get_daily_trade_count(),
-            'registered_stop_losses': len(self.stop_loss_records)
-        }
+@dataclass
+class RiskValidationResult:
+    """Result of risk validation."""
+    approved: bool
+    level: RiskLevel
+    message: str
+    reason: Optional[str] = None
+    halt_triggered: bool = False
 
 
 class RiskEngine:
     """
-    Risk Management Engine - Coordinates all risk checks and enforcement.
+    Risk validation engine for order submission.
     
-    Workflow:
-    1. Validate position size (10% cap)
-    2. Register stop-loss (immutable)
-    3. Monitor drawdown (auto-halt at -15%)
-    4. Enforce daily limits
+    Enforces:
+    - Maximum position size (10% of account)
+    - Minimum R/R ratio (1.5:1)
+    - Drawdown limits (-15% hard stop)
+    - Stop loss immutability
+    - Daily loss limits (-20%)
     """
-    
-    def __init__(self):
-        self.vault = RiskVault()
-        self.logger = logging.getLogger(__name__)
-    
-    def pre_trade_check(self, symbol: str, side: str, quantity: float, 
-                       entry_price: float, account_equity: float,
-                       stop_loss: float, take_profit: float) -> Tuple[bool, Dict]:
+
+    def __init__(self, db: Session):
+        self.db = db
+
+    def validate_order(
+        self,
+        session_id: str,
+        account_balance: Decimal,
+        symbol: str,
+        side: str,
+        size: Decimal,
+        entry_price: Decimal,
+        stop_loss: Decimal,
+        take_profit: Decimal,
+    ) -> RiskValidationResult:
         """
-        Pre-trade risk validation.
+        Validate incoming order against risk limits.
         
-        Returns: (approved, details)
+        Args:
+            session_id: Broker session ID
+            account_balance: Account balance in base currency
+            symbol: Trading symbol (e.g., BTC/USD)
+            side: BUY or SELL
+            size: Order size
+            entry_price: Entry price
+            stop_loss: Stop loss price
+            take_profit: Take profit price
+            
+        Returns:
+            RiskValidationResult with approval status and reason
         """
-        details = {
-            'symbol': symbol,
-            'side': side,
-            'quantity': quantity,
-            'entry': entry_price,
-            'checks': {}
-        }
+        # Fetch risk limits
+        risk_limit = self.db.query(RiskLimit).filter(
+            RiskLimit.session_id == session_id
+        ).first()
         
-        # Check 1: Daily trade limit
-        daily_count = self.vault.get_daily_trade_count()
-        if daily_count >= 10:
-            details['checks']['daily_limit'] = False
-            details['reason'] = f"Daily trade limit reached ({daily_count}/10)"
-            return False, details
-        details['checks']['daily_limit'] = True
+        if not risk_limit:
+            return RiskValidationResult(
+                approved=False,
+                level=RiskLevel.BREACH,
+                message="No risk limits configured for this session",
+                reason="MISSING_RISK_CONFIG"
+            )
         
-        # Check 2: Position size
-        position_value = quantity * entry_price
-        valid, pos_reason, pos_pct = self.vault.validate_position_size(account_equity, position_value)
-        details['checks']['position_size'] = valid
-        details['position_size_pct'] = pos_pct
-        if not valid:
-            details['reason'] = pos_reason
-            return False, details
+        # Check if trading is halted
+        if risk_limit.is_halted:
+            return RiskValidationResult(
+                approved=False,
+                level=RiskLevel.BREACH,
+                message="Trading halted: Drawdown limit exceeded",
+                reason="DRAWDOWN_HALT",
+                halt_triggered=True
+            )
         
-        # Check 3: Drawdown (if we have history)
-        if self.vault.equity_history:
-            peak_equity = max(self.vault.equity_history)
-            safe, dd_reason, dd_pct = self.vault.check_drawdown(account_equity, peak_equity)
-            details['checks']['drawdown'] = safe
-            details['drawdown_pct'] = dd_pct
-            if not safe:
-                details['reason'] = dd_reason
-                return False, details
-        
-        # Check 4: Halted status
-        if self.vault.is_halted():
-            details['checks']['halted'] = False
-            details['reason'] = f"Trading halted: {self.vault.halt_reason}"
-            return False, details
-        details['checks']['halted'] = False
-        
-        details['reason'] = "All checks passed"
-        return True, details
-    
-    def execute_trade(self, trade_id: str, symbol: str, side: str, quantity: float,
-                     entry_price: float, stop_loss: float, take_profit: float) -> bool:
-        """
-        Execute trade with risk registration.
-        
-        Returns: True if successfully registered
-        """
-        # Register stop loss (immutable)
-        sl_registered = self.vault.register_stop_loss(
-            trade_id=trade_id,
-            order_id=f"ORDER_{trade_id}",
-            stop_loss=stop_loss,
-            symbol=symbol
+        # 1. Validate Position Size (≤ 10% of account)
+        position_size_check = self._validate_position_size(
+            account_balance, entry_price, size, risk_limit
         )
+        if not position_size_check.approved:
+            return position_size_check
         
-        if not sl_registered:
-            self.logger.error(f"Failed to register stop-loss for {trade_id}")
+        # 2. Validate R/R Ratio (≥ 1.5:1)
+        risk_reward_check = self._validate_risk_reward(
+            entry_price, stop_loss, take_profit, side, risk_limit
+        )
+        if not risk_reward_check.approved:
+            return risk_reward_check
+        
+        # 3. Check Drawdown Limits
+        drawdown_check = self._validate_drawdown(session_id, size, entry_price, risk_limit)
+        if not drawdown_check.approved:
+            return drawdown_check
+        
+        # 4. Check Daily Loss Limit
+        daily_loss_check = self._validate_daily_loss(session_id, risk_limit)
+        if not daily_loss_check.approved:
+            return daily_loss_check
+        
+        # 5. Validate Stop Loss Immutability (check if order exists)
+        # This is enforced at API level - cannot move SL after order creation
+        
+        return RiskValidationResult(
+            approved=True,
+            level=RiskLevel.OK,
+            message="Order approved - all risk checks passed",
+        )
+
+    def _validate_position_size(
+        self,
+        account_balance: Decimal,
+        entry_price: Decimal,
+        size: Decimal,
+        risk_limit: RiskLimit,
+    ) -> RiskValidationResult:
+        """Check that position size does not exceed max % of account."""
+        position_value = entry_price * size
+        max_position_value = account_balance * Decimal(str(risk_limit.max_position_size_pct))
+        
+        if position_value > max_position_value:
+            return RiskValidationResult(
+                approved=False,
+                level=RiskLevel.BREACH,
+                message=f"Position size ${position_value:.2f} exceeds max ${max_position_value:.2f}",
+                reason="POSITION_SIZE_EXCEEDED"
+            )
+        
+        return RiskValidationResult(
+            approved=True,
+            level=RiskLevel.OK,
+            message="Position size check passed"
+        )
+
+    def _validate_risk_reward(
+        self,
+        entry_price: Decimal,
+        stop_loss: Decimal,
+        take_profit: Decimal,
+        side: str,
+        risk_limit: RiskLimit,
+    ) -> RiskValidationResult:
+        """Check that R/R ratio meets minimum threshold."""
+        if side.upper() == "BUY":
+            risk = entry_price - stop_loss
+            reward = take_profit - entry_price
+        else:  # SELL
+            risk = stop_loss - entry_price
+            reward = entry_price - take_profit
+        
+        if risk <= 0:
+            return RiskValidationResult(
+                approved=False,
+                level=RiskLevel.BREACH,
+                message="Invalid stop loss: must be below entry on BUY, above on SELL",
+                reason="INVALID_STOP_LOSS"
+            )
+        
+        if reward <= 0:
+            return RiskValidationResult(
+                approved=False,
+                level=RiskLevel.BREACH,
+                message="Invalid take profit: must be above entry on BUY, below on SELL",
+                reason="INVALID_TAKE_PROFIT"
+            )
+        
+        risk_reward_ratio = float(reward / risk)
+        
+        if risk_reward_ratio < risk_limit.min_risk_reward_ratio:
+            return RiskValidationResult(
+                approved=False,
+                level=RiskLevel.WARNING,
+                message=f"R/R ratio {risk_reward_ratio:.2f}:1 below minimum {risk_limit.min_risk_reward_ratio}:1",
+                reason="RISK_REWARD_TOO_LOW"
+            )
+        
+        return RiskValidationResult(
+            approved=True,
+            level=RiskLevel.OK,
+            message=f"R/R ratio {risk_reward_ratio:.2f}:1 approved"
+        )
+
+    def _validate_drawdown(
+        self,
+        session_id: str,
+        size: Decimal,
+        entry_price: Decimal,
+        risk_limit: RiskLimit,
+    ) -> RiskValidationResult:
+        """Check that new order doesn't exceed drawdown limits."""
+        # Calculate max risk for this order (if goes to SL)
+        # This is simplified - real implementation would calculate against account equity
+        
+        current_drawdown = risk_limit.current_drawdown_pct
+        max_drawdown_threshold = risk_limit.max_drawdown_pct
+        
+        if current_drawdown < max_drawdown_threshold:
+            return RiskValidationResult(
+                approved=False,
+                level=RiskLevel.BREACH,
+                message=f"Drawdown {current_drawdown:.2%} exceeds limit {max_drawdown_threshold:.2%}",
+                reason="DRAWDOWN_LIMIT_BREACHED",
+                halt_triggered=True
+            )
+        
+        return RiskValidationResult(
+            approved=True,
+            level=RiskLevel.OK,
+            message=f"Drawdown check passed (current: {current_drawdown:.2%})"
+        )
+
+    def _validate_daily_loss(
+        self,
+        session_id: str,
+        risk_limit: RiskLimit,
+    ) -> RiskValidationResult:
+        """Check daily loss limit."""
+        current_daily_loss = risk_limit.current_daily_loss_pct
+        max_daily_loss = risk_limit.max_daily_loss_pct
+        
+        if current_daily_loss < max_daily_loss:
+            return RiskValidationResult(
+                approved=False,
+                level=RiskLevel.BREACH,
+                message=f"Daily loss {current_daily_loss:.2%} exceeds limit {max_daily_loss:.2%}",
+                reason="DAILY_LOSS_LIMIT_BREACHED"
+            )
+        
+        return RiskValidationResult(
+            approved=True,
+            level=RiskLevel.OK,
+            message=f"Daily loss check passed (current: {current_daily_loss:.2%})"
+        )
+
+    def calculate_position_size(
+        self,
+        account_balance: Decimal,
+        risk_pct: float,
+        entry_price: Decimal,
+        stop_loss: Decimal,
+    ) -> Decimal:
+        """
+        Calculate maximum position size for a given risk tolerance.
+        
+        Args:
+            account_balance: Total account balance
+            risk_pct: Risk percentage per trade (e.g., 0.02 = 2%)
+            entry_price: Entry price
+            stop_loss: Stop loss price
+            
+        Returns:
+            Maximum size in units
+        """
+        risk_amount = account_balance * Decimal(str(risk_pct))
+        risk_per_unit = abs(entry_price - stop_loss)
+        
+        if risk_per_unit == 0:
+            return Decimal(0)
+        
+        position_size = risk_amount / risk_per_unit
+        return position_size
+
+    def check_drawdown_halt(self, session_id: str) -> bool:
+        """
+        Check if drawdown breach should halt all trading.
+        
+        Returns:
+            True if trading should be halted
+        """
+        risk_limit = self.db.query(RiskLimit).filter(
+            RiskLimit.session_id == session_id
+        ).first()
+        
+        if not risk_limit:
             return False
         
-        # Record trade
-        trade_recorded = self.vault.record_trade(
-            trade_id=trade_id,
-            symbol=symbol,
-            side=side,
-            quantity=quantity,
-            entry_price=entry_price,
-            stop_loss=stop_loss,
-            take_profit=take_profit
-        )
+        if risk_limit.current_drawdown_pct < risk_limit.max_drawdown_pct:
+            risk_limit.is_halted = True
+            self.db.commit()
+            return True
         
-        return trade_recorded
-    
-    def get_status(self) -> Dict:
-        """Get risk engine status."""
-        return {
-            'vault_status': self.vault.get_vault_status(),
-            'halted': self.vault.is_halted(),
-            'timestamp': datetime.utcnow().isoformat()
-        }
+        return False
+
+    def update_position_pnl(
+        self,
+        session_id: str,
+        account_balance: Decimal,
+    ) -> None:
+        """
+        Update P&L for all open positions and recalculate drawdown.
+        Called periodically or after fills.
+        """
+        positions = self.db.query(Position).filter(
+            Position.session_id == session_id,
+            Position.status == "OPEN"
+        ).all()
+        
+        total_unrealized_pnl = Decimal(0)
+        
+        for position in positions:
+            # Calculate unrealized P&L
+            if position.side.upper() == "LONG":
+                position.unrealized_pnl = (position.current_price - position.entry_price) * position.size
+            else:  # SHORT
+                position.unrealized_pnl = (position.entry_price - position.current_price) * position.size
+            
+            total_unrealized_pnl += position.unrealized_pnl
+        
+        # Update risk limit with drawdown
+        risk_limit = self.db.query(RiskLimit).filter(
+            RiskLimit.session_id == session_id
+        ).first()
+        
+        if risk_limit and account_balance > 0:
+            drawdown_pct = float(total_unrealized_pnl / account_balance)
+            risk_limit.current_drawdown_pct = drawdown_pct
+            
+            # Check if halt should be triggered
+            if drawdown_pct < risk_limit.max_drawdown_pct and risk_limit.halt_on_breach:
+                risk_limit.is_halted = True
+        
+        self.db.commit()

@@ -1,1 +1,3 @@
-"""Trading Bot Tests Package"""
+"""
+Test suite for Trade-Claw backend.
+"""

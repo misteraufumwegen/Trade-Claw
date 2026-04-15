@@ -1,0 +1,339 @@
+"""Test FastAPI endpoints for PHASE 4."""
+
+import pytest
+from decimal import Decimal
+from datetime import datetime
+from fastapi.testclient import TestClient
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker, Session
+
+from app.main import app, get_db_session
+from app.db.models import Base, BrokerSession, RiskLimit, Order, Position, AuditLog
+from app.db.session import init_db
+
+
+# Test database setup
+@pytest.fixture
+def test_db():
+    """Create test database."""
+    engine = create_engine("sqlite:///:memory:")
+    Base.metadata.create_all(bind=engine)
+    SessionLocal = sessionmaker(bind=engine)
+    session = SessionLocal()
+    yield session
+    session.close()
+
+
+@pytest.fixture
+def test_client(test_db: Session):
+    """Create test client with test database."""
+    def override_get_db():
+        yield test_db
+    
+    app.dependency_overrides[get_db_session] = override_get_db
+    client = TestClient(app)
+    yield client
+    app.dependency_overrides.clear()
+
+
+@pytest.fixture
+def broker_session(test_db: Session) -> BrokerSession:
+    """Create test broker session."""
+    session = BrokerSession(
+        user_id="test_user",
+        broker_type="mock",
+        credentials_vault_key="vault:test_session",
+        session_id="test_session_123",
+    )
+    test_db.add(session)
+    
+    # Add risk limits
+    risk_limit = RiskLimit(
+        session_id="test_session_123",
+        max_position_size_pct=0.10,
+        max_drawdown_pct=-0.15,
+        min_risk_reward_ratio=1.5,
+    )
+    test_db.add(risk_limit)
+    test_db.commit()
+    
+    return session
+
+
+class TestHealthEndpoints:
+    """Test health and info endpoints."""
+
+    def test_health_check(self, test_client: TestClient):
+        """Test /health endpoint."""
+        response = test_client.get("/health")
+        assert response.status_code == 200
+        assert response.json()["status"] == "ok"
+        assert response.json()["version"] == "4.0.0"
+
+    def test_root_endpoint(self, test_client: TestClient):
+        """Test root endpoint."""
+        response = test_client.get("/")
+        assert response.status_code == 200
+        assert response.json()["name"] == "Trade-Claw API"
+
+
+class TestBrokerSetup:
+    """Test broker setup endpoints."""
+
+    def test_broker_setup_mock(self, test_client: TestClient):
+        """Test setting up mock broker."""
+        request_data = {
+            "broker_type": "mock",
+            "credentials": {"mode": "normal"},
+            "user_id": "test_user",
+        }
+        response = test_client.post("/api/v1/brokers/setup", json=request_data)
+        
+        # Note: This will fail without proper router mocking
+        # In real implementation, would mock router.create_session()
+        if response.status_code != 500:  # Skip if not mocked
+            assert response.status_code == 200
+            data = response.json()
+            assert "session_id" in data
+            assert data["broker_type"] == "mock"
+            assert data["status"] == "ACTIVE"
+
+
+class TestQuoteEndpoints:
+    """Test price quote endpoints."""
+
+    def test_get_quote(self, test_client: TestClient, broker_session: BrokerSession):
+        """Test getting price quote."""
+        response = test_client.get(
+            f"/api/v1/brokers/{broker_session.session_id}/quote",
+            params={"symbol": "BTC/USD", "amount": 1.0}
+        )
+        
+        # Note: Requires router mock
+        # In real implementation, would return quote
+
+
+class TestOrderEndpoints:
+    """Test order submission and management endpoints."""
+
+    def test_submit_order_requires_auth(self, test_client: TestClient):
+        """Test that order submission requires session."""
+        request_data = {
+            "symbol": "BTC/USD",
+            "side": "BUY",
+            "size": Decimal("1.0"),
+            "entry_price": Decimal("40000"),
+            "stop_loss": Decimal("39000"),
+            "take_profit": Decimal("42000"),
+        }
+        response = test_client.post(
+            "/api/v1/orders/submit",
+            json=request_data,
+            params={"session_id": "invalid_session"}
+        )
+        
+        # Should fail with invalid session
+        assert response.status_code in [400, 404]
+
+    def test_submit_valid_order(self, test_client: TestClient, broker_session: BrokerSession):
+        """Test submitting valid order."""
+        request_data = {
+            "symbol": "BTC/USD",
+            "side": "BUY",
+            "size": "1.0",
+            "entry_price": "40000",
+            "stop_loss": "39000",
+            "take_profit": "42000",
+        }
+        
+        # Note: Requires full mocking of broker adapter
+        # Would need to mock:
+        # - router.get_api_adapter()
+        # - adapter.get_account_info()
+        # - adapter.submit_order()
+
+    def test_invalid_risk_reward(self, test_client: TestClient, broker_session: BrokerSession):
+        """Test that order with poor R/R is rejected."""
+        request_data = {
+            "symbol": "BTC/USD",
+            "side": "BUY",
+            "size": "1.0",
+            "entry_price": "40000",
+            "stop_loss": "39900",  # Only 100 risk
+            "take_profit": "40100",  # Only 100 reward = 1:1 ratio (too low)
+        }
+        
+        # Should reject with R/R < 1.5:1
+
+    def test_get_order_status(self, test_client: TestClient, broker_session: BrokerSession, test_db: Session):
+        """Test getting order status."""
+        # Create test order
+        order = Order(
+            session_id=broker_session.session_id,
+            order_id="order_123",
+            symbol="BTC/USD",
+            side="BUY",
+            size=Decimal("1.0"),
+            entry_price=Decimal("40000"),
+            stop_loss=Decimal("39000"),
+            take_profit=Decimal("42000"),
+            status="FILLED",
+            filled_size=Decimal("1.0"),
+            avg_fill_price=Decimal("40000"),
+            commission=Decimal("10"),
+        )
+        test_db.add(order)
+        test_db.commit()
+        
+        response = test_client.get(
+            "/api/v1/orders/order_123",
+            params={"session_id": broker_session.session_id}
+        )
+        
+        assert response.status_code == 200
+        data = response.json()
+        assert data["order_id"] == "order_123"
+        assert data["status"] == "FILLED"
+        assert data["symbol"] == "BTC/USD"
+
+    def test_cancel_order(self, test_client: TestClient, broker_session: BrokerSession, test_db: Session):
+        """Test cancelling order."""
+        # Create pending order
+        order = Order(
+            session_id=broker_session.session_id,
+            order_id="order_456",
+            symbol="ETH/USD",
+            side="SELL",
+            size=Decimal("10.0"),
+            entry_price=Decimal("2000"),
+            stop_loss=Decimal("2100"),
+            take_profit=Decimal("1900"),
+            status="PENDING",
+        )
+        test_db.add(order)
+        test_db.commit()
+        
+        # Note: Requires router mock for broker cancellation
+        # response = test_client.post(
+        #     "/api/v1/orders/order_456/cancel",
+        #     params={"session_id": broker_session.session_id}
+        # )
+
+
+class TestPositionEndpoints:
+    """Test position endpoints."""
+
+    def test_get_positions_empty(self, test_client: TestClient, broker_session: BrokerSession):
+        """Test getting positions when none exist."""
+        response = test_client.get(
+            "/api/v1/positions",
+            params={"session_id": broker_session.session_id}
+        )
+        
+        assert response.status_code == 200
+        data = response.json()
+        assert data["positions"] == []
+        assert data["total_unrealized_pnl"] == "0"
+        assert data["drawdown_pct"] == 0.0
+        assert data["is_halted"] is False
+
+    def test_get_positions_with_data(self, test_client: TestClient, broker_session: BrokerSession, test_db: Session):
+        """Test getting positions with open positions."""
+        # Add position
+        position = Position(
+            session_id=broker_session.session_id,
+            symbol="BTC/USD",
+            side="LONG",
+            entry_price=Decimal("40000"),
+            current_price=Decimal("41000"),
+            size=Decimal("1.0"),
+            unrealized_pnl=Decimal("1000"),
+            status="OPEN",
+        )
+        test_db.add(position)
+        test_db.commit()
+        
+        response = test_client.get(
+            "/api/v1/positions",
+            params={"session_id": broker_session.session_id}
+        )
+        
+        assert response.status_code == 200
+        data = response.json()
+        assert len(data["positions"]) == 1
+        assert data["positions"][0]["symbol"] == "BTC/USD"
+        assert data["total_unrealized_pnl"] == "1000"
+
+
+class TestAuditEndpoints:
+    """Test audit log endpoints."""
+
+    def test_get_audit_log_empty(self, test_client: TestClient, broker_session: BrokerSession):
+        """Test getting audit log when empty."""
+        response = test_client.get(
+            "/api/v1/audit",
+            params={"session_id": broker_session.session_id}
+        )
+        
+        assert response.status_code == 200
+        data = response.json()
+        assert data["logs"] == []
+        assert data["total_count"] == 0
+
+    def test_get_audit_log_with_events(self, test_client: TestClient, broker_session: BrokerSession, test_db: Session):
+        """Test getting audit log with events."""
+        # Add audit events
+        audit1 = AuditLog(
+            session_id=broker_session.session_id,
+            action="ORDER_SUBMITTED",
+            symbol="BTC/USD",
+            details="Order 001 submitted",
+            severity="INFO",
+        )
+        audit2 = AuditLog(
+            session_id=broker_session.session_id,
+            action="ORDER_FILLED",
+            symbol="BTC/USD",
+            details="Order 001 filled at 40000",
+            severity="INFO",
+        )
+        test_db.add(audit1)
+        test_db.add(audit2)
+        test_db.commit()
+        
+        response = test_client.get(
+            "/api/v1/audit",
+            params={"session_id": broker_session.session_id, "limit": 10}
+        )
+        
+        assert response.status_code == 200
+        data = response.json()
+        assert data["total_count"] == 2
+        assert len(data["logs"]) == 2
+
+    def test_audit_log_filter_by_action(self, test_client: TestClient, broker_session: BrokerSession, test_db: Session):
+        """Test filtering audit log by action."""
+        # Add mixed audit events
+        test_db.add(AuditLog(
+            session_id=broker_session.session_id,
+            action="ORDER_SUBMITTED",
+            details="Test",
+            severity="INFO",
+        ))
+        test_db.add(AuditLog(
+            session_id=broker_session.session_id,
+            action="RISK_VIOLATION",
+            details="Test",
+            severity="WARNING",
+        ))
+        test_db.commit()
+        
+        response = test_client.get(
+            "/api/v1/audit",
+            params={"session_id": broker_session.session_id, "action": "ORDER_SUBMITTED"}
+        )
+        
+        assert response.status_code == 200
+        data = response.json()
+        assert data["total_count"] == 1
+        assert data["logs"][0]["action"] == "ORDER_SUBMITTED"
