@@ -29,27 +29,28 @@ class BacktestResults:
         self.current_equity: float = self.starting_capital
     
     def add_trade_result(self, trade_id: str, entry: float, exit: float, 
-                        direction: str, r_multiple: float, pnl_chf: float):
+                        direction: str, r_multiple: float, pnl_chf: float, scenario: str = 'unknown'):
         """Addiert ein Trade-Ergebnis"""
         self.trades.append({
-            'id': trade_id,
+            'trade_id': trade_id,
             'entry': entry,
             'exit': exit,
             'direction': direction,
             'r_multiple': r_multiple,
-            'pnl': pnl_chf
+            'pnl': pnl_chf,
+            'scenario': scenario
         })
         
         if pnl_chf > 0:
             self.winning_trades.append({
-                'id': trade_id,
+                'trade_id': trade_id,
                 'pnl': pnl_chf,
                 'r': r_multiple
             })
             self.gross_profit += pnl_chf
         else:
             self.losing_trades.append({
-                'id': trade_id,
+                'trade_id': trade_id,
                 'pnl': pnl_chf,
                 'r': r_multiple
             })
@@ -185,11 +186,13 @@ class BacktestSimulator:
             exit=exit_price,
             direction=direction,
             r_multiple=r_multiple,
-            pnl_chf=pnl_chf
+            pnl_chf=pnl_chf,
+            scenario=exit_scenario
         )
         
         return {
             'trade_id': trade_id,
+            'direction': direction,
             'exit_price': exit_price,
             'r_multiple': r_multiple,
             'pnl': pnl_chf,

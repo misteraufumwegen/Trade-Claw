@@ -15,6 +15,9 @@ from app.backtest import BacktestSimulator
 from app.backtest.schemas import BacktestRequest, BacktestResponse, BacktestMetrics
 from app.risk import RiskEngine
 from app.risk.schemas import RiskVaultData
+# Import Correlation module
+from app.correlation.engine import CorrelationEngine
+from app.correlation.schemas import CorrelationRequest, CorrelationResponse
 
 # Configure logging
 logging.basicConfig(
@@ -145,6 +148,69 @@ async def backtest_status():
         "backtest_engine": "BacktestSimulator v1.0",
         "starting_capital": 100.0,
         "message": "Ready to run on-demand backtests"
+    }
+
+
+# =====================================================
+# Correlation Engine Endpoints
+# =====================================================
+
+correlation_engine = CorrelationEngine(lookback_days=30)
+
+@app.post("/api/correlation/analyze", tags=["Correlation"], response_model=CorrelationResponse)
+async def analyze_correlation(request: CorrelationRequest):
+    """
+    Analyze correlation between assets.
+    
+    Computes pairwise correlations and determines trade eligibility.
+    
+    Request body example:
+    {
+        "assets": ["GLD", "SLV", "EUR/USD"],
+        "threshold": 0.7,
+        "lookback_days": 30
+    }
+    
+    Response:
+    - correlation_matrix: Dict of all pairwise correlations
+    - avg_correlation: Average correlation score
+    - trade_eligible: Whether assets are aligned for trading
+    - reasoning: Human-readable explanation
+    """
+    try:
+        # Mock price data generation (in production, fetch from historical data API)
+        import numpy as np
+        np.random.seed(42)  # Deterministic for testing
+        
+        asset_prices = {}
+        for asset in request.assets:
+            # Generate realistic mock prices
+            prices = np.random.normal(100, 5, 30).tolist()  # 30 days of prices
+            asset_prices[asset] = prices
+        
+        # Analyze correlations
+        result = correlation_engine.analyze(
+            asset_prices=asset_prices,
+            threshold=request.threshold
+        )
+        
+        return CorrelationResponse(**result)
+    
+    except Exception as e:
+        logger.error(f"Correlation analysis failed: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Correlation error: {str(e)}")
+
+
+@app.get("/api/correlation/status", tags=["Correlation"])
+async def correlation_status():
+    """
+    Get correlation engine status.
+    """
+    return {
+        "status": "ready",
+        "correlation_engine": "CorrelationEngine v1.0",
+        "default_lookback_days": 30,
+        "message": "Ready to analyze asset correlations"
     }
 
 
