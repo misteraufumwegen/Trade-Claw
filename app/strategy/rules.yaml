@@ -1,0 +1,260 @@
+# Ünal's Trading Rules Configuration
+# Entry/Exit rules defined as structured configuration
+# Version: 1.0
+# Last Updated: April 2026
+
+trading_rules:
+  # ========================================================
+  # ENTRY RULES (must trigger 4 of 5 to enter)
+  # ========================================================
+  entry:
+    structural_break:
+      description: "Price breaks through confirmed structural level (support/resistance)"
+      enabled: true
+      weight: 1.0
+      criteria:
+        - "Price breaks above recent resistance"
+        - "Price breaks below recent support"
+        - "Level holds as barrier for 3+ touches"
+        - "Volume spike on breakout"
+      confirmation:
+        - "Close beyond level (not just touch)"
+        - "Retest of level as new support/resistance"
+    
+    liquidity_sweep:
+      description: "Liquidity sweep confirmation before direction"
+      enabled: true
+      weight: 1.0
+      criteria:
+        - "Initial move into liquidity pocket"
+        - "Sweep of recent extremes (LL or HH)"
+        - "Quick reversal from sweep"
+        - "Return to entry zone with momentum"
+      confirmation:
+        - "Sweep + reversal within 1-4h candles"
+        - "Volume increases on reversal"
+    
+    momentum_aligned:
+      description: "Momentum indicators aligned with intended direction"
+      enabled: true
+      weight: 1.0
+      indicators:
+        rsi:
+          enabled: true
+          long_threshold: 50.0  # RSI > 50 for long
+          short_threshold: 50.0  # RSI < 50 for short
+          period: 14
+        stochastic:
+          enabled: true
+          long_threshold: 50.0  # K/D > 50 for long
+          short_threshold: 50.0  # K/D < 50 for short
+          period: 14
+          smoothing: 3
+        macd:
+          enabled: true
+          # MACD histogram positive for long, negative for short
+          period_fast: 12
+          period_slow: 26
+          period_signal: 9
+      confirmation:
+        - "Multiple indicators aligned (2+ of 3)"
+        - "Momentum divergence support (HLV)"
+    
+    volume_confirmed:
+      description: "Volume confirmation (above 20-day average)"
+      enabled: true
+      weight: 1.0
+      criteria:
+        - "Current volume > 20-day SMA"
+        - "Volume spike on entry candle"
+        - "Relative volume > 1.5x average"
+      thresholds:
+        volume_sma_period: 20
+        volume_multiplier: 1.5
+      confirmation:
+        - "Volume increases on directional move"
+        - "Sustained volume above average"
+    
+    macro_aligned:
+      description: "Macro environment supports the intended direction"
+      enabled: true
+      weight: 1.0
+      environments:
+        risk_on:
+          description: "Risk appetite expanding"
+          supports: ["Long", "Emerging Market Longs", "Growth Assets"]
+          indicators:
+            - "Central bank easing bias"
+            - "Risk sentiment positive"
+            - "Equities rallying"
+            - "VIX < 20"
+        risk_off:
+          description: "Risk appetite contracting"
+          supports: ["Short", "Safe Haven Longs", "Gold/CHF/JPY"]
+          indicators:
+            - "Central bank hawkish"
+            - "Geopolitical tension"
+            - "Equities declining"
+            - "VIX > 25"
+        transition:
+          description: "Transition from Risk-Off to Risk-On"
+          supports: ["Long", "Recovery Assets"]
+          indicators:
+            - "Policy pivot signaled"
+            - "Inflation cooling"
+            - "First bounce plays"
+      confirmation:
+        - "Macro event triggered (Fed decision, CPI, etc)"
+        - "Market structure aligns with macro"
+
+  # ========================================================
+  # EXIT RULES (position management)
+  # ========================================================
+  exit:
+    target_allocation:
+      description: "Exit distribution across targets"
+      tp1:
+        percentage: 0.33
+        reward_multiple: 2.0  # 2R profit
+        price_target: "Entry + (Risk * 2.0)"
+      tp2:
+        percentage: 0.33
+        reward_multiple: 3.0  # 3R profit
+        price_target: "Entry + (Risk * 3.0)"
+      trailing:
+        percentage: 0.34
+        reward_multiple: 1.5  # 1.5R minimum
+        price_target: "Entry + (Risk * 1.5) with trailing stop"
+    
+    stop_loss:
+      description: "Hard stop loss (immutable, non-negotiable)"
+      immutable: true
+      enforcement:
+        - "Once set, cannot be moved beyond risk"
+        - "Can tighten to breakeven after 1.5R"
+        - "Cannot widen under any circumstance"
+    
+    time_exit:
+      description: "Exit after time elapsed (if profit target not hit)"
+      enabled: true
+      max_holding_time_hours: 72
+      action: "Exit remaining position at market"
+    
+    technical_exit:
+      description: "Exit on technical invalidation"
+      enabled: true
+      criteria:
+        - "Break of key support/resistance (opposite direction)"
+        - "Momentum reversal below entry (for longs)"
+        - "Volume drying up despite trend"
+      action: "Exit all remaining"
+
+  # ========================================================
+  # RISK/REWARD ENFORCEMENT
+  # ========================================================
+  risk_management:
+    minimum_rr_ratio: 3.0  # 1:3 minimum R/R for live trades
+    maximum_risk_per_trade_pct: 2.0  # Max 2% account risk
+    maximum_position_size_pct: 10.0  # Max 10% of account
+    maximum_daily_trades: 10
+    maximum_concurrent_positions: 5
+    drawdown_halt_pct: -15.0  # Hard stop: halt trading if drawdown > -15%
+    
+    position_sizing:
+      formula: "Position Size = Risk Amount / (Entry - Stop Loss)"
+      risk_amount_formula: "Account Equity * Risk %"
+      example:
+        account_equity: 100000  # CHF
+        risk_pct: 2.0  # 2%
+        risk_amount: 2000  # CHF
+        entry: 41750  # BTC example
+        stop_loss: 40200
+        risk_distance: 1550
+        position_size: "2000 / 1550 = 1.29 contracts"
+    
+    grade_filter:
+      description: "Trade grade determines if eligible for live trading"
+      live_tradeable:
+        - "A+"  # 7/7 score (excellent)
+        - "A"   # 6/7 score (very good)
+      backtest_only:
+        - "B"   # 5/7 score
+        - "C"   # 4/7 score
+        - "D"   # 3/7 score
+        - "F"   # 0-2 score
+
+  # ========================================================
+  # GRADE SCORING RUBRIC (max 7 points)
+  # ========================================================
+  grade_scoring:
+    criteria:
+      - name: "Structural Level"
+        points: 1
+        description: "Price at key support/resistance level"
+      
+      - name: "Liquidity Sweep"
+        points: 1
+        description: "Sweep of recent extremes confirmed"
+      
+      - name: "Momentum"
+        points: 1
+        description: "RSI/Stochastic/MACD aligned with direction"
+      
+      - name: "Volume"
+        points: 1
+        description: "Volume > 20-day average"
+      
+      - name: "Macro"
+        points: 1
+        description: "Macro environment supports direction"
+      
+      - name: "R/R Ratio"
+        points: 1
+        description: "Risk/Reward >= 1:3"
+      
+      - name: "Confidence"
+        points: 1
+        description: "Setup confidence >= 75%"
+    
+    thresholds:
+      A_PLUS: 7  # All 7 criteria met
+      A: 6       # 6 criteria met
+      B: 5       # 5 criteria met
+      C: 4       # 4 criteria met
+      D: 3       # 3 criteria met
+      F: 0-2     # 0-2 criteria met
+
+# ========================================================
+# MACRO EVENT INTEGRATION
+# ========================================================
+macro_events:
+  categories:
+    - "Monetary Policy" (Fed, ECB, BOJ decisions)
+    - "Fiscal Policy" (Government stimulus, budget announcements)
+    - "Geopolitical" (Sanctions, conflicts, trade wars)
+    - "Economic Data" (CPI, Jobs, GDP, PMI)
+    - "On-Chain Events" (Bitcoin halving, ETH staking events)
+  
+  trigger_rules:
+    green_light: "Event aligns with macro environment + entry rules"
+    amber_light: "Event creates uncertainty, reduce position size"
+    red_light: "Event contradicts setup, cancel or exit"
+
+# ========================================================
+# CORRELATION FILTERS
+# ========================================================
+correlation_rules:
+  description: "Assets must show aligned correlation for entry"
+  threshold: 0.7  # Minimum correlation for "aligned"
+  
+  status_indicators:
+    aligned: "Correlation >= 0.7 (✅ Green light)"
+    diverging: "Correlation 0.3-0.69 (⚠️ Amber light)"
+    opposite: "Correlation < 0.3 (❌ Red light)"
+  
+  example:
+    assets: ["GLD", "SLV", "EUR/USD", "BTC"]
+    gld_vs_slv: 0.85  # ✅ Aligned
+    gld_vs_eurusd: 0.42  # ⚠️ Diverging
+    btc_vs_risk: 0.91  # ✅ Aligned (positive correlation with risk-on)
+    entry_decision: "Enter if primary trade (GLD long) has aligned pairs"
