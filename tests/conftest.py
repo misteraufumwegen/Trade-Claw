@@ -1,14 +1,14 @@
 """Pytest configuration and fixtures for Trade-Claw tests."""
 
-import pytest
-from decimal import Decimal
 from datetime import datetime
+from decimal import Decimal
+
+import pytest
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, Session
+from sqlalchemy.orm import Session, sessionmaker
 
-from app.db.models import Base, BrokerSession, RiskLimit, Order, Position, AuditLog
+from app.db.models import AuditLog, Base, BrokerSession, Order, Position, RiskLimit
 from app.risk import RiskEngine
-
 
 # ============================================================================
 # Database Fixtures
@@ -294,11 +294,11 @@ def audit_logs(db_session: Session, broker_session: BrokerSession) -> list:
             severity="INFO",
         ),
     ]
-    
+
     for log in logs:
         db_session.add(log)
     db_session.commit()
-    
+
     return logs
 
 

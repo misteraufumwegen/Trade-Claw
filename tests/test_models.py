@@ -1,17 +1,18 @@
 """Test SQLAlchemy models."""
 
-import pytest
-from decimal import Decimal
 from datetime import datetime
+from decimal import Decimal
+
+import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from app.db.models import (
+    AuditLog,
     Base,
     BrokerSession,
     Order,
     Position,
-    AuditLog,
     RiskLimit,
 )
 
@@ -97,7 +98,9 @@ class TestBrokerSessionModel:
         db_session.commit()
 
         # Verify relationships
-        retrieved_session = db_session.query(BrokerSession).filter_by(session_id="session_123").first()
+        retrieved_session = (
+            db_session.query(BrokerSession).filter_by(session_id="session_123").first()
+        )
         assert len(retrieved_session.orders) == 1
         assert len(retrieved_session.positions) == 1
         assert len(retrieved_session.audit_logs) == 1
@@ -290,7 +293,12 @@ class TestAuditLogModel:
         db_session.commit()
 
         # Retrieve all logs
-        logs = db_session.query(AuditLog).filter_by(session_id="session_123").order_by(AuditLog.timestamp).all()
+        logs = (
+            db_session.query(AuditLog)
+            .filter_by(session_id="session_123")
+            .order_by(AuditLog.timestamp)
+            .all()
+        )
         assert len(logs) == 2
         assert logs[0].action == "ORDER_SUBMITTED"
         assert logs[1].action == "ORDER_FILLED"

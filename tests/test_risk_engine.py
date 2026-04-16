@@ -1,12 +1,14 @@
 """Test Risk Engine validation."""
 
-import pytest
 from decimal import Decimal
+
+import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from app.db.models import Base, RiskLimit, Order, Position
-from app.risk import DBRiskEngine as RiskEngine, RiskLevel
+from app.db.models import Base, RiskLimit
+from app.risk import DBRiskEngine as RiskEngine
+from app.risk import RiskLevel
 
 
 @pytest.fixture
@@ -169,7 +171,7 @@ class TestDrawdownValidation:
     def test_drawdown_within_limit(self, risk_engine, test_risk_limit):
         """Test trading allowed when drawdown within limit."""
         test_risk_limit.current_drawdown_pct = -0.10  # Within -15% limit
-        
+
         result = risk_engine.validate_order(
             session_id="test_session",
             account_balance=Decimal("100000"),
@@ -186,7 +188,7 @@ class TestDrawdownValidation:
     def test_drawdown_exceeds_limit(self, risk_engine, test_risk_limit):
         """Test trading halted when drawdown breaches limit."""
         test_risk_limit.current_drawdown_pct = -0.16  # Exceeds -15% limit
-        
+
         result = risk_engine.validate_order(
             session_id="test_session",
             account_balance=Decimal("100000"),
@@ -205,7 +207,7 @@ class TestDrawdownValidation:
     def test_halt_prevents_new_orders(self, risk_engine, test_risk_limit):
         """Test that trading halt prevents all new orders."""
         test_risk_limit.is_halted = True
-        
+
         result = risk_engine.validate_order(
             session_id="test_session",
             account_balance=Decimal("100000"),
@@ -228,7 +230,7 @@ class TestDailyLossValidation:
     def test_daily_loss_within_limit(self, risk_engine, test_risk_limit):
         """Test trading allowed when daily loss within limit."""
         test_risk_limit.current_daily_loss_pct = -0.15  # Within -20% limit
-        
+
         result = risk_engine.validate_order(
             session_id="test_session",
             account_balance=Decimal("100000"),
@@ -245,7 +247,7 @@ class TestDailyLossValidation:
     def test_daily_loss_exceeds_limit(self, risk_engine, test_risk_limit):
         """Test trading blocked when daily loss exceeds limit."""
         test_risk_limit.current_daily_loss_pct = -0.21  # Exceeds -20% limit
-        
+
         result = risk_engine.validate_order(
             session_id="test_session",
             account_balance=Decimal("100000"),
@@ -270,11 +272,11 @@ class TestPositionSizeCalculation:
         risk_pct = 0.01  # 1% risk
         entry_price = Decimal("40000")
         stop_loss = Decimal("39000")  # $1,000 risk per unit
-        
+
         position_size = risk_engine.calculate_position_size(
             account_balance, risk_pct, entry_price, stop_loss
         )
-        
+
         # 1% of $100k = $1,000 / $1,000 risk per unit = 1 BTC
         assert position_size == Decimal("1.0")
 
@@ -284,11 +286,11 @@ class TestPositionSizeCalculation:
         risk_pct = 0.02  # 2% risk
         entry_price = Decimal("100")
         stop_loss = Decimal("90")  # $10 risk per unit
-        
+
         position_size = risk_engine.calculate_position_size(
             account_balance, risk_pct, entry_price, stop_loss
         )
-        
+
         # 2% of $50k = $1,000 / $10 risk per unit = 100 units
         assert position_size == Decimal("100")
 
@@ -298,11 +300,11 @@ class TestPositionSizeCalculation:
         risk_pct = 0.01
         entry_price = Decimal("40000")
         stop_loss = Decimal("40000")  # No risk
-        
+
         position_size = risk_engine.calculate_position_size(
             account_balance, risk_pct, entry_price, stop_loss
         )
-        
+
         # Zero risk per unit = zero position size
         assert position_size == Decimal("0")
 
@@ -315,9 +317,9 @@ class TestCheckDrawdownHalt:
         test_risk_limit.current_drawdown_pct = -0.16
         test_risk_limit.max_drawdown_pct = -0.15
         test_risk_limit.halt_on_breach = True
-        
+
         halt_triggered = risk_engine.check_drawdown_halt("test_session")
-        
+
         assert halt_triggered is True
         # Verify halt flag was set
         assert test_risk_limit.is_halted is True
@@ -327,9 +329,9 @@ class TestCheckDrawdownHalt:
         test_risk_limit.current_drawdown_pct = -0.10
         test_risk_limit.max_drawdown_pct = -0.15
         test_risk_limit.halt_on_breach = True
-        
+
         halt_triggered = risk_engine.check_drawdown_halt("test_session")
-        
+
         assert halt_triggered is False
         assert test_risk_limit.is_halted is False
 
@@ -358,7 +360,7 @@ class TestIntegrationScenarios:
         # Simulate significant loss
         test_risk_limit.current_drawdown_pct = -0.16
         test_risk_limit.is_halted = True
-        
+
         result = risk_engine.validate_order(
             session_id="test_session",
             account_balance=Decimal("100000"),

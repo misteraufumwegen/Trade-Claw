@@ -9,18 +9,16 @@ os.environ.setdefault("SECRET_KEY", "test-secret")
 os.environ.setdefault("ENCRYPTION_KEY", "test-encryption-key")
 os.environ.setdefault("DB_PASSWORD", "test-db-password")
 
-import pytest
 from decimal import Decimal
-from datetime import datetime
+
+import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, Session
+from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
+from app.db.models import AuditLog, Base, BrokerSession, Order, Position, RiskLimit
 from app.main import app, get_db_session
-from app.db.models import Base, BrokerSession, RiskLimit, Order, Position, AuditLog
-from app.db.session import init_db
-
 
 # All protected endpoints require the bearer token (C1).
 AUTH_HEADERS = {"Authorization": f"Bearer {os.environ['TRADE_CLAW_API_KEY']}"}
@@ -49,9 +47,10 @@ def test_db():
 @pytest.fixture
 def test_client(test_db: Session):
     """Create test client with test database."""
+
     def override_get_db():
         yield test_db
-    
+
     app.dependency_overrides[get_db_session] = override_get_db
     client = TestClient(app)
     yield client
@@ -68,7 +67,7 @@ def broker_session(test_db: Session) -> BrokerSession:
         session_id="test_session_123",
     )
     test_db.add(session)
-    
+
     # Add risk limits
     risk_limit = RiskLimit(
         session_id="test_session_123",
@@ -78,7 +77,7 @@ def broker_session(test_db: Session) -> BrokerSession:
     )
     test_db.add(risk_limit)
     test_db.commit()
-    
+
     return session
 
 
@@ -109,8 +108,10 @@ class TestBrokerSetup:
             "credentials": {"mode": "normal"},
             "user_id": "test_user",
         }
-        response = test_client.post("/api/v1/brokers/setup", json=request_data, headers=AUTH_HEADERS)
-        
+        response = test_client.post(
+            "/api/v1/brokers/setup", json=request_data, headers=AUTH_HEADERS
+        )
+
         # Note: This will fail without proper router mocking
         # In real implementation, would mock router.create_session()
         if response.status_code != 500:  # Skip if not mocked
@@ -126,11 +127,11 @@ class TestQuoteEndpoints:
 
     def test_get_quote(self, test_client: TestClient, broker_session: BrokerSession):
         """Test getting price quote."""
-        response = test_client.get(
+        test_client.get(
             f"/api/v1/brokers/{broker_session.session_id}/quote",
-            params={"symbol": "BTC/USD", "amount": 1.0}
+            params={"symbol": "BTC/USD", "amount": 1.0},
         )
-        
+
         # Note: Requires router mock
         # In real implementation, would return quote
 
@@ -151,22 +152,16 @@ class TestOrderEndpoints:
         response = test_client.post(
             "/api/v1/orders/submit",
             json=request_data,
-            params={"session_id": "invalid_session"}, headers=AUTH_HEADERS)
-        
+            params={"session_id": "invalid_session"},
+            headers=AUTH_HEADERS,
+        )
+
         # Should fail with invalid session
         assert response.status_code in [400, 404]
 
     def test_submit_valid_order(self, test_client: TestClient, broker_session: BrokerSession):
         """Test submitting valid order."""
-        request_data = {
-            "symbol": "BTC/USD",
-            "side": "BUY",
-            "size": "1.0",
-            "entry_price": "40000",
-            "stop_loss": "39000",
-            "take_profit": "42000",
-        }
-        
+
         # Note: Requires full mocking of broker adapter
         # Would need to mock:
         # - router.get_api_adapter()
@@ -175,18 +170,12 @@ class TestOrderEndpoints:
 
     def test_invalid_risk_reward(self, test_client: TestClient, broker_session: BrokerSession):
         """Test that order with poor R/R is rejected."""
-        request_data = {
-            "symbol": "BTC/USD",
-            "side": "BUY",
-            "size": "1.0",
-            "entry_price": "40000",
-            "stop_loss": "39900",  # Only 100 risk
-            "take_profit": "40100",  # Only 100 reward = 1:1 ratio (too low)
-        }
-        
+
         # Should reject with R/R < 1.5:1
 
-    def test_get_order_status(self, test_client: TestClient, broker_session: BrokerSession, test_db: Session):
+    def test_get_order_status(
+        self, test_client: TestClient, broker_session: BrokerSession, test_db: Session
+    ):
         """Test getting order status."""
         # Create test order
         order = Order(
@@ -205,18 +194,22 @@ class TestOrderEndpoints:
         )
         test_db.add(order)
         test_db.commit()
-        
+
         response = test_client.get(
             "/api/v1/orders/order_123",
-            params={"session_id": broker_session.session_id}, headers=AUTH_HEADERS)
-        
+            params={"session_id": broker_session.session_id},
+            headers=AUTH_HEADERS,
+        )
+
         assert response.status_code == 200
         data = response.json()
         assert data["order_id"] == "order_123"
         assert data["status"] == "FILLED"
         assert data["symbol"] == "BTC/USD"
 
-    def test_cancel_order(self, test_client: TestClient, broker_session: BrokerSession, test_db: Session):
+    def test_cancel_order(
+        self, test_client: TestClient, broker_session: BrokerSession, test_db: Session
+    ):
         """Test cancelling order."""
         # Create pending order
         order = Order(
@@ -232,7 +225,7 @@ class TestOrderEndpoints:
         )
         test_db.add(order)
         test_db.commit()
-        
+
         # Note: Requires router mock for broker cancellation
         # response = test_client.post(
         #     "/api/v1/orders/order_456/cancel",
@@ -247,8 +240,10 @@ class TestPositionEndpoints:
         """Test getting positions when none exist."""
         response = test_client.get(
             "/api/v1/positions",
-            params={"session_id": broker_session.session_id}, headers=AUTH_HEADERS)
-        
+            params={"session_id": broker_session.session_id},
+            headers=AUTH_HEADERS,
+        )
+
         assert response.status_code == 200
         data = response.json()
         assert data["positions"] == []
@@ -256,7 +251,9 @@ class TestPositionEndpoints:
         assert Decimal(data["drawdown_pct"]) == Decimal("0")
         assert data["is_halted"] is False
 
-    def test_get_positions_with_data(self, test_client: TestClient, broker_session: BrokerSession, test_db: Session):
+    def test_get_positions_with_data(
+        self, test_client: TestClient, broker_session: BrokerSession, test_db: Session
+    ):
         """Test getting positions with open positions."""
         # Add position
         position = Position(
@@ -271,11 +268,13 @@ class TestPositionEndpoints:
         )
         test_db.add(position)
         test_db.commit()
-        
+
         response = test_client.get(
             "/api/v1/positions",
-            params={"session_id": broker_session.session_id}, headers=AUTH_HEADERS)
-        
+            params={"session_id": broker_session.session_id},
+            headers=AUTH_HEADERS,
+        )
+
         assert response.status_code == 200
         data = response.json()
         assert len(data["positions"]) == 1
@@ -289,15 +288,17 @@ class TestAuditEndpoints:
     def test_get_audit_log_empty(self, test_client: TestClient, broker_session: BrokerSession):
         """Test getting audit log when empty."""
         response = test_client.get(
-            "/api/v1/audit",
-            params={"session_id": broker_session.session_id}, headers=AUTH_HEADERS)
-        
+            "/api/v1/audit", params={"session_id": broker_session.session_id}, headers=AUTH_HEADERS
+        )
+
         assert response.status_code == 200
         data = response.json()
         assert data["logs"] == []
         assert data["total_count"] == 0
 
-    def test_get_audit_log_with_events(self, test_client: TestClient, broker_session: BrokerSession, test_db: Session):
+    def test_get_audit_log_with_events(
+        self, test_client: TestClient, broker_session: BrokerSession, test_db: Session
+    ):
         """Test getting audit log with events."""
         # Add audit events
         audit1 = AuditLog(
@@ -317,37 +318,47 @@ class TestAuditEndpoints:
         test_db.add(audit1)
         test_db.add(audit2)
         test_db.commit()
-        
+
         response = test_client.get(
             "/api/v1/audit",
-            params={"session_id": broker_session.session_id, "limit": 10}, headers=AUTH_HEADERS)
-        
+            params={"session_id": broker_session.session_id, "limit": 10},
+            headers=AUTH_HEADERS,
+        )
+
         assert response.status_code == 200
         data = response.json()
         assert data["total_count"] == 2
         assert len(data["logs"]) == 2
 
-    def test_audit_log_filter_by_action(self, test_client: TestClient, broker_session: BrokerSession, test_db: Session):
+    def test_audit_log_filter_by_action(
+        self, test_client: TestClient, broker_session: BrokerSession, test_db: Session
+    ):
         """Test filtering audit log by action."""
         # Add mixed audit events
-        test_db.add(AuditLog(
-            session_id=broker_session.session_id,
-            action="ORDER_SUBMITTED",
-            details="Test",
-            severity="INFO",
-        ))
-        test_db.add(AuditLog(
-            session_id=broker_session.session_id,
-            action="RISK_VIOLATION",
-            details="Test",
-            severity="WARNING",
-        ))
+        test_db.add(
+            AuditLog(
+                session_id=broker_session.session_id,
+                action="ORDER_SUBMITTED",
+                details="Test",
+                severity="INFO",
+            )
+        )
+        test_db.add(
+            AuditLog(
+                session_id=broker_session.session_id,
+                action="RISK_VIOLATION",
+                details="Test",
+                severity="WARNING",
+            )
+        )
         test_db.commit()
-        
+
         response = test_client.get(
             "/api/v1/audit",
-            params={"session_id": broker_session.session_id, "action": "ORDER_SUBMITTED"}, headers=AUTH_HEADERS)
-        
+            params={"session_id": broker_session.session_id, "action": "ORDER_SUBMITTED"},
+            headers=AUTH_HEADERS,
+        )
+
         assert response.status_code == 200
         data = response.json()
         assert data["total_count"] == 1

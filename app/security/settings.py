@@ -10,8 +10,7 @@ from __future__ import annotations
 
 import logging
 import os
-import sys
-from typing import Iterable, List
+from collections.abc import Iterable
 
 logger = logging.getLogger(__name__)
 
@@ -44,9 +43,9 @@ def _is_placeholder(value: str) -> bool:
     return value.strip().lower() in _PLACEHOLDERS
 
 
-def _check(var_names: Iterable[str]) -> List[str]:
+def _check(var_names: Iterable[str]) -> list[str]:
     """Return a list of problem descriptions (empty if fine)."""
-    problems: List[str] = []
+    problems: list[str] = []
     for name in var_names:
         value = os.getenv(name)
         if value is None or value.strip() == "":
@@ -85,7 +84,6 @@ def validate_environment(strict: bool | None = None) -> None:
     if strict:
         logger.error(message)
         # Write to stderr as well so it is visible in container logs.
-        print(f"[FATAL] {message}", file=sys.stderr)
         raise RuntimeError(message)
 
     logger.warning("DEV-ONLY — %s", message)

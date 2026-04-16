@@ -8,13 +8,13 @@ Includes:
 - Historical event database (5+ years for backtests)
 """
 
-from .event_fetcher import MacroEventFetcher, MacroEvent, EventCategory
-from .event_filters import EventScorer, EventFilter
+from .event_fetcher import EventCategory, MacroEvent, MacroEventFetcher
+from .event_filters import EventFilter, EventScorer
 
 __all__ = [
-    'MacroEventFetcher',
-    'MacroEvent',
-    'EventCategory',
-    'EventScorer',
-    'EventFilter',
+    "MacroEventFetcher",
+    "MacroEvent",
+    "EventCategory",
+    "EventScorer",
+    "EventFilter",
 ]

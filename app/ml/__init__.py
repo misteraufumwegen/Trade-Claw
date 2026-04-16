@@ -3,11 +3,11 @@ ML module - Machine Learning and grading components
 """
 
 from .grader import (
-    TradeGrade,
-    SetupCriteria,
-    TradeSetup,
     GraderEngine,
+    SetupCriteria,
+    TradeGrade,
     TradeGrader,
+    TradeSetup,
 )
 
 __all__ = [

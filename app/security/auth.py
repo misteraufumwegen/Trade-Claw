@@ -20,7 +20,6 @@ from __future__ import annotations
 import hmac
 import os
 import secrets
-from typing import Optional
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
@@ -37,7 +36,7 @@ _UNSET_MARKERS = {
 }
 
 
-def _load_api_key() -> Optional[str]:
+def _load_api_key() -> str | None:
     """Read the expected API key from the environment."""
     key = os.getenv("TRADE_CLAW_API_KEY")
     if key is None:
@@ -49,7 +48,7 @@ def _load_api_key() -> Optional[str]:
 
 
 async def require_api_key(
-    credentials: Optional[HTTPAuthorizationCredentials] = Depends(_bearer),
+    credentials: HTTPAuthorizationCredentials | None = Depends(_bearer),
 ) -> None:
     """
     FastAPI dependency that enforces a bearer API key.

@@ -1,20 +1,18 @@
 """SQLAlchemy models for Trade-Claw database."""
 
 from datetime import datetime
-from decimal import Decimal
-from typing import Optional
 
 from sqlalchemy import (
-    Column,
-    Integer,
-    String,
-    Float,
-    Numeric,
-    DateTime,
     Boolean,
-    Text,
+    Column,
+    DateTime,
+    Float,
     ForeignKey,
     Index,
+    Integer,
+    Numeric,
+    String,
+    Text,
 )
 from sqlalchemy.orm import declarative_base, relationship
 
@@ -37,9 +35,15 @@ class BrokerSession(Base):
 
     # Relationships
     orders = relationship("Order", back_populates="broker_session", cascade="all, delete-orphan")
-    positions = relationship("Position", back_populates="broker_session", cascade="all, delete-orphan")
-    audit_logs = relationship("AuditLog", back_populates="broker_session", cascade="all, delete-orphan")
-    risk_limits = relationship("RiskLimit", back_populates="broker_session", cascade="all, delete-orphan")
+    positions = relationship(
+        "Position", back_populates="broker_session", cascade="all, delete-orphan"
+    )
+    audit_logs = relationship(
+        "AuditLog", back_populates="broker_session", cascade="all, delete-orphan"
+    )
+    risk_limits = relationship(
+        "RiskLimit", back_populates="broker_session", cascade="all, delete-orphan"
+    )
 
     __table_args__ = (Index("idx_user_broker", "user_id", "broker_type"),)
 
@@ -50,7 +54,9 @@ class Order(Base):
     __tablename__ = "orders"
 
     id = Column(Integer, primary_key=True, index=True)
-    session_id = Column(String(255), ForeignKey("broker_sessions.session_id"), nullable=False, index=True)
+    session_id = Column(
+        String(255), ForeignKey("broker_sessions.session_id"), nullable=False, index=True
+    )
     order_id = Column(String(255), unique=True, index=True, nullable=False)  # Broker's order ID
     symbol = Column(String(20), nullable=False, index=True)
     side = Column(String(10), nullable=False)  # BUY or SELL
@@ -95,7 +101,9 @@ class Position(Base):
     __tablename__ = "positions"
 
     id = Column(Integer, primary_key=True, index=True)
-    session_id = Column(String(255), ForeignKey("broker_sessions.session_id"), nullable=False, index=True)
+    session_id = Column(
+        String(255), ForeignKey("broker_sessions.session_id"), nullable=False, index=True
+    )
     symbol = Column(String(20), nullable=False, index=True)
     entry_price = Column(Numeric(18, 8), nullable=False)
     current_price = Column(Numeric(18, 8), nullable=False)
@@ -119,8 +127,12 @@ class AuditLog(Base):
     __tablename__ = "audit_logs"
 
     id = Column(Integer, primary_key=True, index=True)
-    session_id = Column(String(255), ForeignKey("broker_sessions.session_id"), nullable=False, index=True)
-    action = Column(String(50), nullable=False)  # ORDER_SUBMITTED, ORDER_FILLED, POSITION_CLOSED, etc.
+    session_id = Column(
+        String(255), ForeignKey("broker_sessions.session_id"), nullable=False, index=True
+    )
+    action = Column(
+        String(50), nullable=False
+    )  # ORDER_SUBMITTED, ORDER_FILLED, POSITION_CLOSED, etc.
     symbol = Column(String(20), nullable=True)
     details = Column(Text, nullable=False)  # JSON payload
     hash_chain = Column(String(512), nullable=True)  # SHA-256 hash for integrity
@@ -139,7 +151,9 @@ class RiskLimit(Base):
     __tablename__ = "risk_limits"
 
     id = Column(Integer, primary_key=True, index=True)
-    session_id = Column(String(255), ForeignKey("broker_sessions.session_id"), nullable=False, unique=True)
+    session_id = Column(
+        String(255), ForeignKey("broker_sessions.session_id"), nullable=False, unique=True
+    )
     max_position_size_pct = Column(Float, default=0.10)  # 10% of account
     max_drawdown_pct = Column(Float, default=-0.15)  # -15% hard stop
     max_daily_loss_pct = Column(Float, default=-0.20)  # -20% per day

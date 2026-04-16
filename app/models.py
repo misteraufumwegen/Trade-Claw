@@ -9,17 +9,28 @@ Models:
 """
 
 from datetime import datetime
-from sqlalchemy import Column, Integer, String, Float, DateTime, Boolean, Enum, Text, ForeignKey, Index
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import relationship
 from enum import Enum as PyEnum
 
+from sqlalchemy import (
+    Boolean,
+    Column,
+    DateTime,
+    Float,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    Text,
+)
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import relationship
 
 Base = declarative_base()
 
 
 class OrderStatus(PyEnum):
     """Order status enumeration."""
+
     PENDING = "pending"
     FILLED = "filled"
     PARTIAL = "partial"
@@ -30,6 +41,7 @@ class OrderStatus(PyEnum):
 
 class OrderType(PyEnum):
     """Order type enumeration."""
+
     MARKET = "market"
     LIMIT = "limit"
     STOP = "stop"
@@ -38,15 +50,16 @@ class OrderType(PyEnum):
 
 class BrokerType(PyEnum):
     """Broker type enumeration."""
+
     ALPACA = "alpaca"
     OANDA = "oanda"
 
 
 class User(Base):
     """User/Broker account."""
-    
+
     __tablename__ = "users"
-    
+
     id = Column(Integer, primary_key=True, index=True)
     username = Column(String(255), unique=True, index=True, nullable=False)
     email = Column(String(255), unique=True, index=True, nullable=False)
@@ -55,12 +68,14 @@ class User(Base):
     is_sandbox = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    
+
     # Relationships
-    credentials = relationship("CredentialsVault", back_populates="user", cascade="all, delete-orphan")
+    credentials = relationship(
+        "CredentialsVault", back_populates="user", cascade="all, delete-orphan"
+    )
     trades = relationship("Trade", back_populates="user", cascade="all, delete-orphan")
     audit_logs = relationship("AuditLog", back_populates="user", cascade="all, delete-orphan")
-    
+
     __table_args__ = (
         Index("idx_users_username", "username"),
         Index("idx_users_email", "email"),
@@ -69,9 +84,9 @@ class User(Base):
 
 class CredentialsVault(Base):
     """Encrypted API credentials."""
-    
+
     __tablename__ = "credentials_vault"
-    
+
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
     key_name = Column(String(255), nullable=False)  # e.g., "api_key", "secret_key", "token"
@@ -79,10 +94,10 @@ class CredentialsVault(Base):
     broker = Column(String(50), nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    
+
     # Relationships
     user = relationship("User", back_populates="credentials")
-    
+
     __table_args__ = (
         Index("idx_credentials_user_id", "user_id"),
         Index("idx_credentials_key_name", "key_name"),
@@ -92,9 +107,9 @@ class CredentialsVault(Base):
 
 class Trade(Base):
     """Executed trade/order record."""
-    
+
     __tablename__ = "trades"
-    
+
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
     order_id = Column(String(255), unique=True, index=True, nullable=False)
@@ -112,10 +127,10 @@ class Trade(Base):
     profit_loss = Column(Float, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow, index=True)
     filled_at = Column(DateTime, nullable=True)
-    
+
     # Relationships
     user = relationship("User", back_populates="trades")
-    
+
     __table_args__ = (
         Index("idx_trades_user_id", "user_id"),
         Index("idx_trades_order_id", "order_id"),
@@ -127,9 +142,9 @@ class Trade(Base):
 
 class AuditLog(Base):
     """System audit log."""
-    
+
     __tablename__ = "audit_logs"
-    
+
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)
     action = Column(String(255), nullable=False)
@@ -140,10 +155,10 @@ class AuditLog(Base):
     error_message = Column(Text, nullable=True)
     ip_address = Column(String(50), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow, index=True)
-    
+
     # Relationships
     user = relationship("User", back_populates="audit_logs")
-    
+
     __table_args__ = (
         Index("idx_audit_user_id", "user_id"),
         Index("idx_audit_action", "action"),

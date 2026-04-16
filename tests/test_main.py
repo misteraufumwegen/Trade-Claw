@@ -72,9 +72,7 @@ def test_protected_endpoint_rejects_wrong_key(client: TestClient) -> None:
     assert r.status_code == 403
 
 
-def test_protected_endpoint_accepts_correct_key(
-    client: TestClient, auth: dict
-) -> None:
+def test_protected_endpoint_accepts_correct_key(client: TestClient, auth: dict) -> None:
     r = client.get("/api/v1/positions?session_id=does-not-exist", headers=auth)
     assert r.status_code == 200  # empty list
 
@@ -97,16 +95,16 @@ ORDER_BASE = {
 @pytest.mark.parametrize(
     "override",
     [
-        {"size": -1},                 # negative size
-        {"size": 0},                  # zero size
-        {"entry_price": 0},           # zero price
-        {"stop_loss": 50_000},        # equals entry
-        {"take_profit": 50_000},      # equals entry
-        {"stop_loss": 52_000},        # SL above entry for BUY
-        {"take_profit": 49_500},      # TP below entry for BUY
-        {"symbol": "bad symbol!"},    # regex fail
-        {"symbol": "btcusd"},         # lowercase fail
-        {"side": "INVALID"},          # unknown side
+        {"size": -1},  # negative size
+        {"size": 0},  # zero size
+        {"entry_price": 0},  # zero price
+        {"stop_loss": 50_000},  # equals entry
+        {"take_profit": 50_000},  # equals entry
+        {"stop_loss": 52_000},  # SL above entry for BUY
+        {"take_profit": 49_500},  # TP below entry for BUY
+        {"symbol": "bad symbol!"},  # regex fail
+        {"symbol": "btcusd"},  # lowercase fail
+        {"side": "INVALID"},  # unknown side
     ],
 )
 def test_submit_order_invalid_inputs_rejected(
@@ -145,9 +143,7 @@ def test_setup_broker_rejects_unknown_broker(client: TestClient, auth: dict) -> 
     assert r.status_code == 422
 
 
-def test_setup_broker_rejects_empty_credentials(
-    client: TestClient, auth: dict
-) -> None:
+def test_setup_broker_rejects_empty_credentials(client: TestClient, auth: dict) -> None:
     r = client.post(
         "/api/v1/brokers/setup",
         headers=auth,

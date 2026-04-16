@@ -29,6 +29,7 @@ def __getattr__(name: str):
     """
     if name == "HyperliquidAdapter":
         from .hyperliquid_adapter import HyperliquidAdapter  # noqa: WPS433
+
         return HyperliquidAdapter
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 

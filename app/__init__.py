@@ -29,18 +29,23 @@ from app.brokers.mock_broker import MockBrokerAdapter
 # Expose them lazily so ``import app`` works even when those packages aren't
 # installed.
 
+
 def __getattr__(name: str):
     if name == "OrderAPIAdapter":
         from app.api.order_api_adapter import OrderAPIAdapter
+
         return OrderAPIAdapter
     if name in {"BrokerSessionRouter", "BrokerType"}:
         from app.routing.broker_session_router import BrokerSessionRouter, BrokerType
+
         return {"BrokerSessionRouter": BrokerSessionRouter, "BrokerType": BrokerType}[name]
     if name == "OnboardingWizard":
         from app.wizard.onboarding_broker_config import OnboardingWizard
+
         return OnboardingWizard
     if name == "AuditLog":
         from app.security.audit import AuditLog
+
         return AuditLog
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 

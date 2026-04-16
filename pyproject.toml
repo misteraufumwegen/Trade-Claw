@@ -28,11 +28,15 @@ ignore = [
     "E501",   # line-length handled by formatter
     "S101",   # assert — fine in tests
     "S105",   # hardcoded-password-string false positives on broker docs
+    "B008",   # FastAPI's Depends/Query in default args is intentional
+    "S104",   # Binding to 0.0.0.0 is intentional for the API server
 ]
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**" = ["S101", "S105", "S106"]
-"app/macro/event_*.py" = ["T201"]  # CLI demo prints are intentional
+"app/macro/event_*.py" = ["T201"]      # CLI demo prints are intentional
+"app/backtest/simulator.py" = ["S311"] # non-crypto random is intentional in backtest
+"app/brokers/mock_broker.py" = ["S311"] # non-crypto random is intentional in mock
 
 [tool.ruff.format]
 quote-style = "double"

@@ -8,7 +8,6 @@ standalone RiskEngine and unit/integration tests.
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Dict, List, Optional, Tuple
 
 
 @dataclass
@@ -55,10 +54,10 @@ class RiskVault:
 
         self.active: bool = True
         self.halted: bool = False
-        self.halt_reason: Optional[str] = None
+        self.halt_reason: str | None = None
 
-        self.stop_loss_records: Dict[str, StopLossRecord] = {}
-        self.daily_trades: List[TradeRecord] = []
+        self.stop_loss_records: dict[str, StopLossRecord] = {}
+        self.daily_trades: list[TradeRecord] = []
 
     # ------------------------------------------------------------------
     # Stop-loss management
@@ -84,7 +83,7 @@ class RiskVault:
         self,
         trade_id: str,
         new_stop_loss: float,
-    ) -> Tuple[bool, str]:
+    ) -> tuple[bool, str]:
         """
         Attempt to modify an existing stop-loss.
 
@@ -113,7 +112,7 @@ class RiskVault:
         self,
         account_equity: float,
         position_value: float,
-    ) -> Tuple[bool, str, float]:
+    ) -> tuple[bool, str, float]:
         """
         Check that position_value does not exceed position_size_cap_pct % of
         account_equity.
@@ -143,7 +142,7 @@ class RiskVault:
         self,
         current_equity: float,
         peak_equity: float,
-    ) -> Tuple[bool, str, float]:
+    ) -> tuple[bool, str, float]:
         """
         Calculate drawdown and halt trading if it breaches the limit.
 
@@ -159,8 +158,7 @@ class RiskVault:
         if dd_pct <= self.drawdown_halt_pct:
             self.halted = True
             self.halt_reason = (
-                f"Drawdown {dd_pct:.2f}% breached halt level "
-                f"{self.drawdown_halt_pct:.2f}%"
+                f"Drawdown {dd_pct:.2f}% breached halt level {self.drawdown_halt_pct:.2f}%"
             )
             return (
                 False,

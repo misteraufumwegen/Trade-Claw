@@ -1,17 +1,18 @@
 """Risk validation engine - prevents high-risk orders and enforces drawdown limits."""
 
 from dataclasses import dataclass
+from datetime import datetime
 from decimal import Decimal
-from typing import Optional, List
 from enum import Enum
 
 from sqlalchemy.orm import Session
 
-from app.db.models import Order, Position, RiskLimit
+from app.db.models import Position, RiskLimit
 
 
 class RiskLevel(Enum):
     """Risk level classification."""
+
     OK = "OK"
     WARNING = "WARNING"
     BREACH = "BREACH"
@@ -20,10 +21,11 @@ class RiskLevel(Enum):
 @dataclass
 class RiskValidationResult:
     """Result of risk validation."""
+
     approved: bool
     level: RiskLevel
     message: str
-    reason: Optional[str] = None
+    reason: str | None = None
     halt_triggered: bool = False
 
 
@@ -58,7 +60,7 @@ class DBRiskEngine:
     ) -> RiskValidationResult:
         """
         Validate incoming order against risk limits.
-        
+
         Args:
             session_id: Broker session ID
             account_balance: Account balance in base currency
@@ -68,23 +70,21 @@ class DBRiskEngine:
             entry_price: Entry price
             stop_loss: Stop loss price
             take_profit: Take profit price
-            
+
         Returns:
             RiskValidationResult with approval status and reason
         """
         # Fetch risk limits
-        risk_limit = self.db.query(RiskLimit).filter(
-            RiskLimit.session_id == session_id
-        ).first()
-        
+        risk_limit = self.db.query(RiskLimit).filter(RiskLimit.session_id == session_id).first()
+
         if not risk_limit:
             return RiskValidationResult(
                 approved=False,
                 level=RiskLevel.BREACH,
                 message="No risk limits configured for this session",
-                reason="MISSING_RISK_CONFIG"
+                reason="MISSING_RISK_CONFIG",
             )
-        
+
         # Check if trading is halted
         if risk_limit.is_halted:
             return RiskValidationResult(
@@ -92,36 +92,36 @@ class DBRiskEngine:
                 level=RiskLevel.BREACH,
                 message="Trading halted: Drawdown limit exceeded",
                 reason="DRAWDOWN_HALT",
-                halt_triggered=True
+                halt_triggered=True,
             )
-        
+
         # 1. Validate Position Size (≤ 10% of account)
         position_size_check = self._validate_position_size(
             account_balance, entry_price, size, risk_limit
         )
         if not position_size_check.approved:
             return position_size_check
-        
+
         # 2. Validate R/R Ratio (≥ 1.5:1)
         risk_reward_check = self._validate_risk_reward(
             entry_price, stop_loss, take_profit, side, risk_limit
         )
         if not risk_reward_check.approved:
             return risk_reward_check
-        
+
         # 3. Check Drawdown Limits
         drawdown_check = self._validate_drawdown(session_id, size, entry_price, risk_limit)
         if not drawdown_check.approved:
             return drawdown_check
-        
+
         # 4. Check Daily Loss Limit
         daily_loss_check = self._validate_daily_loss(session_id, risk_limit)
         if not daily_loss_check.approved:
             return daily_loss_check
-        
+
         # 5. Validate Stop Loss Immutability (check if order exists)
         # This is enforced at API level - cannot move SL after order creation
-        
+
         return RiskValidationResult(
             approved=True,
             level=RiskLevel.OK,
@@ -138,19 +138,17 @@ class DBRiskEngine:
         """Check that position size does not exceed max % of account."""
         position_value = entry_price * size
         max_position_value = account_balance * Decimal(str(risk_limit.max_position_size_pct))
-        
+
         if position_value > max_position_value:
             return RiskValidationResult(
                 approved=False,
                 level=RiskLevel.BREACH,
                 message=f"Position size ${position_value:.2f} exceeds max ${max_position_value:.2f}",
-                reason="POSITION_SIZE_EXCEEDED"
+                reason="POSITION_SIZE_EXCEEDED",
             )
-        
+
         return RiskValidationResult(
-            approved=True,
-            level=RiskLevel.OK,
-            message="Position size check passed"
+            approved=True, level=RiskLevel.OK, message="Position size check passed"
         )
 
     def _validate_risk_reward(
@@ -168,37 +166,37 @@ class DBRiskEngine:
         else:  # SELL
             risk = stop_loss - entry_price
             reward = entry_price - take_profit
-        
+
         if risk <= 0:
             return RiskValidationResult(
                 approved=False,
                 level=RiskLevel.BREACH,
                 message="Invalid stop loss: must be below entry on BUY, above on SELL",
-                reason="INVALID_STOP_LOSS"
+                reason="INVALID_STOP_LOSS",
             )
-        
+
         if reward <= 0:
             return RiskValidationResult(
                 approved=False,
                 level=RiskLevel.BREACH,
                 message="Invalid take profit: must be above entry on BUY, below on SELL",
-                reason="INVALID_TAKE_PROFIT"
+                reason="INVALID_TAKE_PROFIT",
             )
-        
+
         risk_reward_ratio = float(reward / risk)
-        
+
         if risk_reward_ratio < risk_limit.min_risk_reward_ratio:
             return RiskValidationResult(
                 approved=False,
                 level=RiskLevel.WARNING,
                 message=f"R/R ratio {risk_reward_ratio:.2f}:1 below minimum {risk_limit.min_risk_reward_ratio}:1",
-                reason="RISK_REWARD_TOO_LOW"
+                reason="RISK_REWARD_TOO_LOW",
             )
-        
+
         return RiskValidationResult(
             approved=True,
             level=RiskLevel.OK,
-            message=f"R/R ratio {risk_reward_ratio:.2f}:1 approved"
+            message=f"R/R ratio {risk_reward_ratio:.2f}:1 approved",
         )
 
     def _validate_drawdown(
@@ -231,8 +229,7 @@ class DBRiskEngine:
                 approved=False,
                 level=RiskLevel.BREACH,
                 message=(
-                    f"Drawdown {current_drawdown:.2%} exceeds limit "
-                    f"{max_drawdown_threshold:.2%}"
+                    f"Drawdown {current_drawdown:.2%} exceeds limit {max_drawdown_threshold:.2%}"
                 ),
                 reason="DRAWDOWN_LIMIT_BREACHED",
                 halt_triggered=True,
@@ -262,10 +259,7 @@ class DBRiskEngine:
             return RiskValidationResult(
                 approved=False,
                 level=RiskLevel.BREACH,
-                message=(
-                    f"Daily loss {current_daily_loss:.2%} exceeds limit "
-                    f"{max_daily_loss:.2%}"
-                ),
+                message=(f"Daily loss {current_daily_loss:.2%} exceeds limit {max_daily_loss:.2%}"),
                 reason="DAILY_LOSS_LIMIT_BREACHED",
             )
 
@@ -284,44 +278,42 @@ class DBRiskEngine:
     ) -> Decimal:
         """
         Calculate maximum position size for a given risk tolerance.
-        
+
         Args:
             account_balance: Total account balance
             risk_pct: Risk percentage per trade (e.g., 0.02 = 2%)
             entry_price: Entry price
             stop_loss: Stop loss price
-            
+
         Returns:
             Maximum size in units
         """
         risk_amount = account_balance * Decimal(str(risk_pct))
         risk_per_unit = abs(entry_price - stop_loss)
-        
+
         if risk_per_unit == 0:
             return Decimal(0)
-        
+
         position_size = risk_amount / risk_per_unit
         return position_size
 
     def check_drawdown_halt(self, session_id: str) -> bool:
         """
         Check if drawdown breach should halt all trading.
-        
+
         Returns:
             True if trading should be halted
         """
-        risk_limit = self.db.query(RiskLimit).filter(
-            RiskLimit.session_id == session_id
-        ).first()
-        
+        risk_limit = self.db.query(RiskLimit).filter(RiskLimit.session_id == session_id).first()
+
         if not risk_limit:
             return False
-        
+
         if risk_limit.current_drawdown_pct < risk_limit.max_drawdown_pct:
             risk_limit.is_halted = True
             self.db.commit()
             return True
-        
+
         return False
 
     def update_position_pnl(
@@ -333,27 +325,30 @@ class DBRiskEngine:
         Update P&L for all open positions and recalculate drawdown.
         Called periodically or after fills.
         """
-        positions = self.db.query(Position).filter(
-            Position.session_id == session_id,
-            Position.status == "OPEN"
-        ).all()
-        
+        positions = (
+            self.db.query(Position)
+            .filter(Position.session_id == session_id, Position.status == "OPEN")
+            .all()
+        )
+
         total_unrealized_pnl = Decimal(0)
-        
+
         for position in positions:
             # Calculate unrealized P&L
             if position.side.upper() == "LONG":
-                position.unrealized_pnl = (position.current_price - position.entry_price) * position.size
+                position.unrealized_pnl = (
+                    position.current_price - position.entry_price
+                ) * position.size
             else:  # SHORT
-                position.unrealized_pnl = (position.entry_price - position.current_price) * position.size
-            
+                position.unrealized_pnl = (
+                    position.entry_price - position.current_price
+                ) * position.size
+
             total_unrealized_pnl += position.unrealized_pnl
-        
+
         # Update risk limit with drawdown
-        risk_limit = self.db.query(RiskLimit).filter(
-            RiskLimit.session_id == session_id
-        ).first()
-        
+        risk_limit = self.db.query(RiskLimit).filter(RiskLimit.session_id == session_id).first()
+
         if risk_limit and account_balance > 0:
             drawdown_pct = float(total_unrealized_pnl / account_balance)
             risk_limit.current_drawdown_pct = drawdown_pct
@@ -369,8 +364,6 @@ class DBRiskEngine:
 # Standalone RiskEngine (no database required)
 # ---------------------------------------------------------------------------
 
-from datetime import datetime as _datetime  # local import to avoid top-level cycle
-from typing import Tuple as _Tuple
 from app.risk.vault import RiskVault  # noqa: E402
 
 
@@ -395,7 +388,7 @@ class RiskEngine:
         account_equity: float,
         stop_loss: float,
         take_profit: float,
-    ) -> _Tuple[bool, dict]:
+    ) -> tuple[bool, dict]:
         """
         Run pre-trade risk checks.
 
@@ -450,5 +443,5 @@ class RiskEngine:
         return {
             "vault_status": self.vault.status(),
             "halted": self.vault.is_halted(),
-            "timestamp": _datetime.utcnow().isoformat(),
+            "timestamp": datetime.utcnow().isoformat(),
         }

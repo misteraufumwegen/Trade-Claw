@@ -10,10 +10,9 @@ Pattern:
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from enum import Enum
-from typing import Dict, List, Optional, Any
 from datetime import datetime
-import asyncio
+from enum import Enum
+from typing import Any
 
 
 class OrderDirection(Enum):
@@ -57,6 +56,7 @@ class OrderStatus(Enum):
 @dataclass
 class Quote:
     """Market quote response"""
+
     symbol: str
     bid: float
     ask: float
@@ -69,21 +69,22 @@ class Quote:
 @dataclass
 class Order:
     """Order representation (normalized across all brokers)"""
+
     order_id: str
     symbol: str
     direction: OrderDirection  # BUY / SELL
     order_type: OrderType
     quantity: float
-    price: Optional[float] = None  # For LIMIT, STOP orders
-    stop_price: Optional[float] = None  # For STOP orders
+    price: float | None = None  # For LIMIT, STOP orders
+    stop_price: float | None = None  # For STOP orders
     status: OrderStatus = OrderStatus.PENDING
     filled_quantity: float = 0.0
-    average_fill_price: Optional[float] = None
-    created_at: Optional[datetime] = None
-    filled_at: Optional[datetime] = None
-    cancelled_at: Optional[datetime] = None
-    broker_order_id: Optional[str] = None  # broker's internal ID
-    metadata: Dict[str, Any] = None  # broker-specific data
+    average_fill_price: float | None = None
+    created_at: datetime | None = None
+    filled_at: datetime | None = None
+    cancelled_at: datetime | None = None
+    broker_order_id: str | None = None  # broker's internal ID
+    metadata: dict[str, Any] = None  # broker-specific data
 
     def __post_init__(self):
         if self.metadata is None:
@@ -93,6 +94,7 @@ class Order:
 @dataclass
 class Position:
     """Open position representation"""
+
     symbol: str
     quantity: float
     average_price: float
@@ -106,6 +108,7 @@ class Position:
 @dataclass
 class TradeConfirmation:
     """Trade execution confirmation"""
+
     order_id: str
     broker_order_id: str
     symbol: str
@@ -123,10 +126,10 @@ class BrokerAdapter(ABC):
     Each broker (Alpaca, OANDA, Hyperliquid, etc.) extends this.
     """
 
-    def __init__(self, api_key: str, secret_key: Optional[str] = None, **kwargs):
+    def __init__(self, api_key: str, secret_key: str | None = None, **kwargs):
         """
         Initialize broker adapter with credentials.
-        
+
         Args:
             api_key: API Key / Public Key
             secret_key: API Secret / Private Key (if applicable)
@@ -149,23 +152,23 @@ class BrokerAdapter(ABC):
     async def get_quote(self, symbol: str) -> Quote:
         """
         Get current market quote for a symbol.
-        
+
         Args:
             symbol: Trading pair (e.g., "EUR_USD" for OANDA, "BTC/USD" for Hyperliquid)
-        
+
         Returns:
             Quote object with bid/ask/last price
         """
         pass
 
     @abstractmethod
-    async def get_quotes_batch(self, symbols: List[str]) -> Dict[str, Quote]:
+    async def get_quotes_batch(self, symbols: list[str]) -> dict[str, Quote]:
         """
         Get multiple quotes in one call (more efficient).
-        
+
         Args:
             symbols: List of trading pairs
-        
+
         Returns:
             Dict mapping symbol -> Quote
         """
@@ -175,13 +178,13 @@ class BrokerAdapter(ABC):
     async def submit_order(self, order: Order) -> str:
         """
         Submit order to broker.
-        
+
         Args:
             order: Order object with entry details
-        
+
         Returns:
             order_id (broker's order ID)
-        
+
         Raises:
             OrderRejectedError: If broker rejects order
             InsufficientLiquidityError: If liquidity unavailable
@@ -193,10 +196,10 @@ class BrokerAdapter(ABC):
     async def get_order_status(self, order_id: str) -> Order:
         """
         Get current status of an order.
-        
+
         Args:
             order_id: Broker order ID
-        
+
         Returns:
             Updated Order object
         """
@@ -206,54 +209,54 @@ class BrokerAdapter(ABC):
     async def cancel_order(self, order_id: str) -> bool:
         """
         Cancel an open order.
-        
+
         Args:
             order_id: Broker order ID
-        
+
         Returns:
             True if cancelled successfully, False if already closed
         """
         pass
 
     @abstractmethod
-    async def get_positions(self) -> List[Position]:
+    async def get_positions(self) -> list[Position]:
         """
         Get all open positions.
-        
+
         Returns:
             List of Position objects
         """
         pass
 
     @abstractmethod
-    async def get_position(self, symbol: str) -> Optional[Position]:
+    async def get_position(self, symbol: str) -> Position | None:
         """
         Get single position by symbol.
-        
+
         Returns:
             Position if exists, None if no position
         """
         pass
 
     @abstractmethod
-    async def get_account_balance(self) -> Dict[str, float]:
+    async def get_account_balance(self) -> dict[str, float]:
         """
         Get account balance and equity.
-        
+
         Returns:
             Dict with keys: 'balance', 'equity', 'margin_available', 'margin_used'
         """
         pass
 
     @abstractmethod
-    async def stream_prices(self, symbols: List[str], callback) -> None:
+    async def stream_prices(self, symbols: list[str], callback) -> None:
         """
         Subscribe to live price updates via WebSocket.
-        
+
         Args:
             symbols: List of symbols to stream
             callback: Async function(symbol, price_update) to call on each tick
-        
+
         Note: Should run indefinitely until disconnected
         """
         pass
@@ -268,24 +271,29 @@ class BrokerAdapter(ABC):
 
 class BrokerError(Exception):
     """Base exception for broker errors"""
+
     pass
 
 
 class OrderRejectedError(BrokerError):
     """Order was rejected by broker"""
+
     pass
 
 
 class InsufficientLiquidityError(BrokerError):
     """Not enough liquidity to fill order"""
+
     pass
 
 
 class InvalidOrderError(BrokerError):
     """Order parameters invalid"""
+
     pass
 
 
 class AuthenticationError(BrokerError):
     """API credentials invalid"""
+
     pass

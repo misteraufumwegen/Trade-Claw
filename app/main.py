@@ -3,11 +3,8 @@
 from __future__ import annotations
 
 import os
-import re
-import uuid
 from datetime import datetime
 from decimal import Decimal
-from typing import List, Optional
 
 from fastapi import Depends, FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
@@ -22,7 +19,6 @@ from app.exceptions import (
     BrokerConnectionError,
     OrderRejectedError,
     OrderValidationError,
-    SessionNotFoundError,
 )
 from app.logging_config import setup_logging
 from app.risk import DBRiskEngine as RiskEngine
@@ -47,6 +43,7 @@ validate_environment()
 # Initialize database
 init_db()
 
+
 # ---------------------------------------------------------------------------
 # Vault — DatabaseStorage backend (C3)
 #
@@ -57,11 +54,14 @@ init_db()
 # ---------------------------------------------------------------------------
 def _build_vault_master_key() -> bytes:
     """Derive a 32-byte URL-safe base64 Fernet key from ENCRYPTION_KEY."""
-    import base64, hashlib
+    import base64
+    import hashlib
+
     raw = os.environb.get(b"ENCRYPTION_KEY") or os.getenv("ENCRYPTION_KEY", "").encode()
     # Fernet requires exactly 32 URL-safe-base64-encoded bytes (44 chars).
-    derived = hashlib.sha256(raw).digest()          # always 32 bytes
-    return base64.urlsafe_b64encode(derived)        # 44-char Fernet key
+    derived = hashlib.sha256(raw).digest()  # always 32 bytes
+    return base64.urlsafe_b64encode(derived)  # 44-char Fernet key
+
 
 _credential_vault: Vault = Vault(
     master_key=_build_vault_master_key(),
@@ -124,7 +124,7 @@ class BrokerSetupRequest(BaseModel):
 
     broker_type: str = Field(..., description="alpaca, oanda, hyperliquid, mock")
     credentials: dict = Field(..., description="Broker credentials (API keys, etc.)")
-    user_id: Optional[str] = Field(None, max_length=64)
+    user_id: str | None = Field(None, max_length=64)
 
     @field_validator("broker_type")
     @classmethod
@@ -132,8 +132,7 @@ class BrokerSetupRequest(BaseModel):
         v_lower = v.strip().lower()
         if v_lower not in _SUPPORTED_BROKERS:
             raise ValueError(
-                f"Unsupported broker_type '{v}'. "
-                f"Allowed: {sorted(_SUPPORTED_BROKERS)}"
+                f"Unsupported broker_type '{v}'. Allowed: {sorted(_SUPPORTED_BROKERS)}"
             )
         return v_lower
 
@@ -178,7 +177,7 @@ class OrderSubmitRequest(BaseModel):
     stop_loss: Decimal = Field(..., gt=Decimal(0))
     take_profit: Decimal = Field(..., gt=Decimal(0))
     # Idempotency key (H4) — clients can pass their own UUID to make retries safe.
-    idempotency_key: Optional[str] = Field(
+    idempotency_key: str | None = Field(
         None,
         min_length=8,
         max_length=128,
@@ -194,7 +193,7 @@ class OrderSubmitRequest(BaseModel):
         return v_upper
 
     @model_validator(mode="after")
-    def _check_sl_tp_relation(self) -> "OrderSubmitRequest":
+    def _check_sl_tp_relation(self) -> OrderSubmitRequest:
         """Ensure SL/TP make sense for the chosen side (H8)."""
         if self.entry_price == self.stop_loss:
             raise ValueError("entry_price must not equal stop_loss")
@@ -223,8 +222,8 @@ class OrderSubmitResponse(BaseModel):
     entry_price: Decimal
     created_at: datetime
     message: str
-    risk_ratio: Optional[Decimal] = None
-    idempotency_key: Optional[str] = None
+    risk_ratio: Decimal | None = None
+    idempotency_key: str | None = None
 
 
 class OrderStatusResponse(BaseModel):
@@ -234,15 +233,15 @@ class OrderStatusResponse(BaseModel):
     side: str
     size: Decimal
     filled_size: Decimal = Decimal("0")
-    avg_fill_price: Optional[Decimal] = None
+    avg_fill_price: Decimal | None = None
     entry_price: Decimal
     stop_loss: Decimal
     take_profit: Decimal
     commission: Decimal = Decimal("0")
-    pnl: Optional[Decimal] = None
-    unrealized_pnl: Optional[Decimal] = None
+    pnl: Decimal | None = None
+    unrealized_pnl: Decimal | None = None
     created_at: datetime
-    filled_at: Optional[datetime] = None
+    filled_at: datetime | None = None
 
 
 class PositionResponse(BaseModel):
@@ -257,7 +256,7 @@ class PositionResponse(BaseModel):
 
 
 class PositionListResponse(BaseModel):
-    positions: List[PositionResponse]
+    positions: list[PositionResponse]
     total_unrealized_pnl: Decimal
     total_pnl_pct: Decimal
     drawdown_pct: Decimal
@@ -267,14 +266,14 @@ class PositionListResponse(BaseModel):
 class AuditLogResponse(BaseModel):
     id: int
     action: str
-    symbol: Optional[str] = None
+    symbol: str | None = None
     details: str
     severity: str
     timestamp: datetime
 
 
 class AuditLogExportResponse(BaseModel):
-    logs: List[AuditLogResponse]
+    logs: list[AuditLogResponse]
     total_count: int
     format: str = "json"
 
@@ -284,9 +283,7 @@ class AuditLogExportResponse(BaseModel):
 # ---------------------------------------------------------------------------
 
 
-def _risk_ratio(
-    side: str, entry: Decimal, sl: Decimal, tp: Decimal
-) -> Optional[Decimal]:
+def _risk_ratio(side: str, entry: Decimal, sl: Decimal, tp: Decimal) -> Decimal | None:
     """Compute R/R using Decimal arithmetic (H5).
 
     Returns None when the SL leg has zero distance (should not happen after
@@ -351,6 +348,7 @@ async def setup_broker(
         # Persist encrypted credentials so they survive restarts (C3).
         vault_key = f"vault:{session_id}"
         import json as _json
+
         _credential_vault.store(vault_key, _json.dumps(request.credentials))
 
         broker_session = BrokerSession(
@@ -387,7 +385,7 @@ async def setup_broker(
         raise
     except Exception:  # pragma: no cover - safety net
         logger.exception("Unexpected error during broker setup")
-        raise HTTPException(status_code=500, detail="Internal error")
+        raise HTTPException(status_code=500, detail="Internal error") from None
 
 
 # ---------------------------------------------------------------------------
@@ -403,15 +401,13 @@ async def setup_broker(
 async def get_quote(
     session_id: str,
     symbol: str = Query(..., min_length=1, max_length=20, pattern=_SYMBOL_PATTERN),
-    amount: Optional[Decimal] = Query(None, gt=Decimal(0)),
+    amount: Decimal | None = Query(None, gt=Decimal(0)),
     db: Session = Depends(get_db_session),
 ):
     """Get a live price quote for a symbol."""
     try:
         broker_session = (
-            db.query(BrokerSession)
-            .filter(BrokerSession.session_id == session_id)
-            .first()
+            db.query(BrokerSession).filter(BrokerSession.session_id == session_id).first()
         )
         if not broker_session:
             raise HTTPException(status_code=404, detail="Session not found")
@@ -435,7 +431,7 @@ async def get_quote(
         raise HTTPException(status_code=400, detail="Quote unavailable") from exc
     except Exception:
         logger.exception("Unexpected quote error")
-        raise HTTPException(status_code=500, detail="Internal error")
+        raise HTTPException(status_code=500, detail="Internal error") from None
 
 
 # ---------------------------------------------------------------------------
@@ -449,7 +445,7 @@ async def get_quote(
     dependencies=[Depends(require_api_key)],
 )
 async def submit_order(
-    request: OrderSubmitRequest,              # body — required, no default (H2)
+    request: OrderSubmitRequest,  # body — required, no default (H2)
     session_id: str = Query(..., min_length=1, max_length=64),
     db: Session = Depends(get_db_session),
 ):
@@ -457,9 +453,7 @@ async def submit_order(
     try:
         # Session lookup
         broker_session = (
-            db.query(BrokerSession)
-            .filter(BrokerSession.session_id == session_id)
-            .first()
+            db.query(BrokerSession).filter(BrokerSession.session_id == session_id).first()
         )
         if not broker_session:
             raise HTTPException(status_code=404, detail="Session not found")
@@ -601,7 +595,7 @@ async def submit_order(
         raise HTTPException(status_code=502, detail="Broker connection failed") from exc
     except Exception:
         logger.exception("Unexpected order submission error")
-        raise HTTPException(status_code=500, detail="Internal error")
+        raise HTTPException(status_code=500, detail="Internal error") from None
 
 
 @app.get(
@@ -646,7 +640,7 @@ async def get_order_status(
         raise
     except Exception:
         logger.exception("Order status fetch failed")
-        raise HTTPException(status_code=500, detail="Internal error")
+        raise HTTPException(status_code=500, detail="Internal error") from None
 
 
 @app.post(
@@ -705,7 +699,7 @@ async def cancel_order(
         raise HTTPException(status_code=502, detail="Broker connection failed") from exc
     except Exception:
         logger.exception("Order cancellation failed")
-        raise HTTPException(status_code=500, detail="Internal error")
+        raise HTTPException(status_code=500, detail="Internal error") from None
 
 
 # ---------------------------------------------------------------------------
@@ -729,9 +723,7 @@ async def get_positions(
             .filter(Position.session_id == session_id, Position.status == "OPEN")
             .all()
         )
-        risk_limit = (
-            db.query(RiskLimit).filter(RiskLimit.session_id == session_id).first()
-        )
+        risk_limit = db.query(RiskLimit).filter(RiskLimit.session_id == session_id).first()
 
         total_unrealized_pnl = (
             sum((p.unrealized_pnl for p in positions), start=Decimal("0"))
@@ -739,7 +731,7 @@ async def get_positions(
             else Decimal("0")
         )
 
-        position_responses: List[PositionResponse] = []
+        position_responses: list[PositionResponse] = []
         for p in positions:
             notional = (p.entry_price or Decimal(0)) * (p.size or Decimal(0))
             pnl_pct = (
@@ -764,7 +756,9 @@ async def get_positions(
             positions=position_responses,
             total_unrealized_pnl=total_unrealized_pnl,
             total_pnl_pct=Decimal("0.00"),
-            drawdown_pct=Decimal(str(risk_limit.current_drawdown_pct)) if risk_limit else Decimal("0"),
+            drawdown_pct=Decimal(str(risk_limit.current_drawdown_pct))
+            if risk_limit
+            else Decimal("0"),
             is_halted=bool(risk_limit.is_halted) if risk_limit else False,
         )
 
@@ -772,7 +766,7 @@ async def get_positions(
         raise
     except Exception:
         logger.exception("Position fetch failed")
-        raise HTTPException(status_code=500, detail="Internal error")
+        raise HTTPException(status_code=500, detail="Internal error") from None
 
 
 # ---------------------------------------------------------------------------
@@ -787,8 +781,8 @@ async def get_positions(
 )
 async def get_audit_log(
     session_id: str = Query(..., min_length=1, max_length=64),
-    action: Optional[str] = Query(None),
-    severity: Optional[str] = Query(None),
+    action: str | None = Query(None),
+    severity: str | None = Query(None),
     limit: int = Query(100, ge=1, le=1000),
     offset: int = Query(0, ge=0, le=1_000_000),
     db: Session = Depends(get_db_session),
@@ -818,12 +812,7 @@ async def get_audit_log(
             query = query.filter(AuditLog.severity == severity)
 
         total_count = query.count()
-        logs = (
-            query.order_by(AuditLog.timestamp.desc())
-            .offset(offset)
-            .limit(limit)
-            .all()
-        )
+        logs = query.order_by(AuditLog.timestamp.desc()).offset(offset).limit(limit).all()
 
         return AuditLogExportResponse(
             logs=[
@@ -845,7 +834,7 @@ async def get_audit_log(
         raise
     except Exception:
         logger.exception("Audit log fetch failed")
-        raise HTTPException(status_code=500, detail="Internal error")
+        raise HTTPException(status_code=500, detail="Internal error") from None
 
 
 # ---------------------------------------------------------------------------
@@ -856,7 +845,7 @@ async def get_audit_log(
 # Phase 2 test suite can call them without token setup.
 # ---------------------------------------------------------------------------
 
-from app.backtest import BacktestSimulator, BacktestRequest, BacktestResponse  # noqa: E402
+from app.backtest import BacktestRequest, BacktestSimulator  # noqa: E402
 from app.risk import RiskEngine as _StandaloneRiskEngine  # noqa: E402
 
 # Shared singleton for risk (state must persist across calls)
@@ -908,7 +897,7 @@ async def run_backtest(request: BacktestRequest):
         }
     except Exception:
         logger.exception("Backtest failed")
-        raise HTTPException(status_code=500, detail="Backtest failed")
+        raise HTTPException(status_code=500, detail="Backtest failed") from None
 
 
 @app.get("/api/backtest/status")

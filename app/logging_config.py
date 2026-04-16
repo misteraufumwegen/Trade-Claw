@@ -1,11 +1,11 @@
 """Structured logging configuration for Trade-Claw."""
 
+import json
 import logging
 import logging.handlers
-import json
 import os
-from typing import Any
 from datetime import datetime
+from typing import Any
 
 
 class JSONFormatter(logging.Formatter):

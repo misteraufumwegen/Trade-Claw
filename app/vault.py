@@ -31,8 +31,9 @@ import json
 import logging
 import os
 import threading
+from collections.abc import Iterable
 from pathlib import Path
-from typing import Any, Dict, Iterable, Optional, Protocol, runtime_checkable
+from typing import Protocol, runtime_checkable
 
 from cryptography.fernet import Fernet, InvalidToken
 from cryptography.hazmat.backends import default_backend
@@ -48,26 +49,31 @@ logger = logging.getLogger(__name__)
 
 class VaultError(Exception):
     """Base exception for vault operations."""
+
     pass
 
 
 class VaultInitializationError(VaultError):
     """Raised when vault initialization fails."""
+
     pass
 
 
 class VaultEncryptionError(VaultError):
     """Raised when encryption fails."""
+
     pass
 
 
 class VaultDecryptionError(VaultError):
     """Raised when decryption fails."""
+
     pass
 
 
 class VaultKeyNotFoundError(VaultError):
     """Raised when a key is not found in the vault."""
+
     pass
 
 
@@ -80,7 +86,7 @@ class VaultKeyNotFoundError(VaultError):
 class VaultStorage(Protocol):
     """Interface every storage backend implements (C3)."""
 
-    def get(self, key: str) -> Optional[str]: ...
+    def get(self, key: str) -> str | None: ...
     def set(self, key: str, ciphertext: str) -> None: ...
     def delete(self, key: str) -> None: ...
     def keys(self) -> Iterable[str]: ...
@@ -91,10 +97,10 @@ class InMemoryStorage:
     """RAM-only backend. Useful for tests. Data is lost on restart."""
 
     def __init__(self) -> None:
-        self._data: Dict[str, str] = {}
+        self._data: dict[str, str] = {}
         self._lock = threading.Lock()
 
-    def get(self, key: str) -> Optional[str]:
+    def get(self, key: str) -> str | None:
         with self._lock:
             return self._data.get(key)
 
@@ -125,7 +131,7 @@ class FileStorage:
             self.path.parent.mkdir(parents=True, exist_ok=True)
             self._write({})
 
-    def _read(self) -> Dict[str, str]:
+    def _read(self) -> dict[str, str]:
         try:
             with self.path.open("r", encoding="utf-8") as fh:
                 data = json.load(fh)
@@ -133,7 +139,7 @@ class FileStorage:
         except (FileNotFoundError, json.JSONDecodeError):
             return {}
 
-    def _write(self, data: Dict[str, str]) -> None:
+    def _write(self, data: dict[str, str]) -> None:
         tmp = self.path.with_suffix(self.path.suffix + ".tmp")
         with tmp.open("w", encoding="utf-8") as fh:
             json.dump(data, fh, indent=2)
@@ -144,7 +150,7 @@ class FileStorage:
             pass
         os.replace(tmp, self.path)
 
-    def get(self, key: str) -> Optional[str]:
+    def get(self, key: str) -> str | None:
         with self._lock:
             return self._read().get(key)
 
@@ -190,7 +196,7 @@ class DatabaseStorage:
         sess = self._session_factory()
         return sess
 
-    def get(self, key: str) -> Optional[str]:
+    def get(self, key: str) -> str | None:
         from app.db.models import VaultSecret  # local import — see above
 
         sess = self._session()
@@ -260,7 +266,7 @@ class Vault:
         storage (VaultStorage): Pluggable storage backend (C3).
     """
 
-    def __init__(self, master_key: bytes, storage: Optional[VaultStorage] = None):
+    def __init__(self, master_key: bytes, storage: VaultStorage | None = None):
         """
         Initialise the vault with a master key.
 
@@ -281,37 +287,35 @@ class Vault:
             self.master_key = master_key
             self.cipher = Fernet(master_key)
             self.storage: VaultStorage = storage or InMemoryStorage()
-            logger.info(
-                "Vault initialised (backend=%s)", type(self.storage).__name__
-            )
+            logger.info("Vault initialised (backend=%s)", type(self.storage).__name__)
         except Exception as e:
-            raise VaultInitializationError(f"Failed to initialise Fernet cipher: {e}")
-    
+            raise VaultInitializationError(f"Failed to initialise Fernet cipher: {e}") from e
+
     @staticmethod
     def generate_key() -> bytes:
         """
         Generate a new random master key.
-        
+
         Returns:
             bytes: 32-byte Fernet key (base64-encoded)
         """
         return Fernet.generate_key()
-    
+
     @staticmethod
-    def derive_key_from_password(password: str, salt: Optional[bytes] = None) -> tuple[bytes, bytes]:
+    def derive_key_from_password(password: str, salt: bytes | None = None) -> tuple[bytes, bytes]:
         """
         Derive a Fernet-compatible key from a password using PBKDF2.
-        
+
         Args:
             password (str): Password to derive from
             salt (bytes, optional): Salt for derivation (generated if not provided)
-            
+
         Returns:
             tuple[bytes, bytes]: (derived_key, salt)
         """
         if salt is None:
             salt = os.urandom(16)
-        
+
         kdf = PBKDF2HMAC(
             algorithm=hashes.SHA256(),
             length=32,
@@ -319,78 +323,78 @@ class Vault:
             iterations=PBKDF2_ITERATIONS,
             backend=default_backend(),
         )
-        
+
         key = base64.urlsafe_b64encode(kdf.derive(password.encode()))
         return key, salt
-    
+
     @classmethod
-    def initialize(cls, master_key: Optional[bytes] = None) -> "Vault":
+    def initialize(cls, master_key: bytes | None = None) -> Vault:
         """
         Initialize a vault with a master key.
-        
+
         Args:
             master_key (bytes, optional): Existing key. If None, generates new key.
-            
+
         Returns:
             Vault: Initialized vault instance
-            
+
         Raises:
             VaultInitializationError: If initialization fails
         """
         if master_key is None:
             master_key = cls.generate_key()
             logger.info("Generated new master key")
-        
+
         return cls(master_key)
-    
+
     def encrypt(self, plaintext: str) -> str:
         """
         Encrypt a plaintext string.
-        
+
         Args:
             plaintext (str): Text to encrypt
-            
+
         Returns:
             str: Encrypted ciphertext (base64-encoded)
-            
+
         Raises:
             VaultEncryptionError: If encryption fails
         """
         if not plaintext:
             raise VaultEncryptionError("Cannot encrypt empty plaintext")
-        
+
         try:
             ciphertext = self.cipher.encrypt(plaintext.encode()).decode()
             logger.debug(f"Encrypted {len(plaintext)} bytes")
             return ciphertext
         except Exception as e:
-            raise VaultEncryptionError(f"Encryption failed: {e}")
-    
+            raise VaultEncryptionError(f"Encryption failed: {e}") from e
+
     def decrypt(self, ciphertext: str) -> str:
         """
         Decrypt a ciphertext string.
-        
+
         Args:
             ciphertext (str): Encrypted text to decrypt
-            
+
         Returns:
             str: Decrypted plaintext
-            
+
         Raises:
             VaultDecryptionError: If decryption fails or ciphertext is invalid
         """
         if not ciphertext:
             raise VaultDecryptionError("Cannot decrypt empty ciphertext")
-        
+
         try:
             plaintext = self.cipher.decrypt(ciphertext.encode()).decode()
             logger.debug(f"Decrypted {len(ciphertext)} bytes")
             return plaintext
         except InvalidToken:
-            raise VaultDecryptionError("Invalid or tampered ciphertext (InvalidToken)")
+            raise VaultDecryptionError("Invalid or tampered ciphertext (InvalidToken)") from None
         except Exception as e:
-            raise VaultDecryptionError(f"Decryption failed: {e}")
-    
+            raise VaultDecryptionError(f"Decryption failed: {e}") from e
+
     def store(self, key: str, secret: str) -> None:
         """Encrypt ``secret`` and store it under ``key``."""
         if not key or not secret:
@@ -403,7 +407,7 @@ class Vault:
         except VaultEncryptionError:
             raise
         except Exception as e:  # pragma: no cover - storage-specific
-            raise VaultEncryptionError(f"Failed to store secret '{key}': {e}")
+            raise VaultEncryptionError(f"Failed to store secret '{key}': {e}") from e
 
     def retrieve(self, key: str) -> str:
         """Decrypt and return the secret stored under ``key``."""
@@ -418,7 +422,7 @@ class Vault:
         except VaultDecryptionError:
             raise
         except Exception as e:  # pragma: no cover
-            raise VaultDecryptionError(f"Failed to retrieve secret '{key}': {e}")
+            raise VaultDecryptionError(f"Failed to retrieve secret '{key}': {e}") from e
 
     def delete(self, key: str) -> None:
         """Delete ``key`` from the vault."""
@@ -460,7 +464,7 @@ class Vault:
         try:
             imported = json.loads(json_data)
         except json.JSONDecodeError as e:
-            raise VaultError(f"Invalid JSON: {e}")
+            raise VaultError(f"Invalid JSON: {e}") from e
         if not isinstance(imported, dict):
             raise VaultError("Invalid JSON: must be a mapping of key → ciphertext")
 

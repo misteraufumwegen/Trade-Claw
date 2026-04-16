@@ -1,18 +1,15 @@
 """Database session management."""
 
 import os
-from typing import Generator
+from collections.abc import Generator
 
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, Session
+from sqlalchemy.orm import Session, sessionmaker
 
 from .models import Base
 
 # Database URL from environment or default SQLite
-DATABASE_URL = os.getenv(
-    "DATABASE_URL",
-    "sqlite:///./trade_claw.db"
-)
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./trade_claw.db")
 
 # Create engine
 engine = create_engine(
