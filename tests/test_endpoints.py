@@ -1,22 +1,44 @@
 """Test FastAPI endpoints for PHASE 4."""
 
+import os
+
+# Env vars must be set BEFORE importing app.main — it validates at import.
+os.environ.setdefault("ENVIRONMENT", "test")
+os.environ.setdefault("TRADE_CLAW_API_KEY", "test-endpoints-key")
+os.environ.setdefault("SECRET_KEY", "test-secret")
+os.environ.setdefault("ENCRYPTION_KEY", "test-encryption-key")
+os.environ.setdefault("DB_PASSWORD", "test-db-password")
+
 import pytest
 from decimal import Decimal
 from datetime import datetime
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, Session
+from sqlalchemy.pool import StaticPool
 
 from app.main import app, get_db_session
 from app.db.models import Base, BrokerSession, RiskLimit, Order, Position, AuditLog
 from app.db.session import init_db
 
 
+# All protected endpoints require the bearer token (C1).
+AUTH_HEADERS = {"Authorization": f"Bearer {os.environ['TRADE_CLAW_API_KEY']}"}
+
+
 # Test database setup
 @pytest.fixture
 def test_db():
-    """Create test database."""
-    engine = create_engine("sqlite:///:memory:")
+    """Create test database.
+
+    Uses StaticPool + check_same_thread=False so that the fixture's session
+    and the TestClient's thread both see the same underlying in-memory DB.
+    """
+    engine = create_engine(
+        "sqlite:///:memory:",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
     Base.metadata.create_all(bind=engine)
     SessionLocal = sessionmaker(bind=engine)
     session = SessionLocal()
@@ -87,7 +109,7 @@ class TestBrokerSetup:
             "credentials": {"mode": "normal"},
             "user_id": "test_user",
         }
-        response = test_client.post("/api/v1/brokers/setup", json=request_data)
+        response = test_client.post("/api/v1/brokers/setup", json=request_data, headers=AUTH_HEADERS)
         
         # Note: This will fail without proper router mocking
         # In real implementation, would mock router.create_session()
@@ -121,16 +143,15 @@ class TestOrderEndpoints:
         request_data = {
             "symbol": "BTC/USD",
             "side": "BUY",
-            "size": Decimal("1.0"),
-            "entry_price": Decimal("40000"),
-            "stop_loss": Decimal("39000"),
-            "take_profit": Decimal("42000"),
+            "size": "1.0",
+            "entry_price": "40000",
+            "stop_loss": "39000",
+            "take_profit": "42000",
         }
         response = test_client.post(
             "/api/v1/orders/submit",
             json=request_data,
-            params={"session_id": "invalid_session"}
-        )
+            params={"session_id": "invalid_session"}, headers=AUTH_HEADERS)
         
         # Should fail with invalid session
         assert response.status_code in [400, 404]
@@ -173,22 +194,21 @@ class TestOrderEndpoints:
             order_id="order_123",
             symbol="BTC/USD",
             side="BUY",
-            size=Decimal("1.0"),
-            entry_price=Decimal("40000"),
-            stop_loss=Decimal("39000"),
-            take_profit=Decimal("42000"),
+            size="1.0",
+            entry_price="40000",
+            stop_loss="39000",
+            take_profit="42000",
             status="FILLED",
-            filled_size=Decimal("1.0"),
-            avg_fill_price=Decimal("40000"),
-            commission=Decimal("10"),
+            filled_size="1.0",
+            avg_fill_price="40000",
+            commission="10",
         )
         test_db.add(order)
         test_db.commit()
         
         response = test_client.get(
             "/api/v1/orders/order_123",
-            params={"session_id": broker_session.session_id}
-        )
+            params={"session_id": broker_session.session_id}, headers=AUTH_HEADERS)
         
         assert response.status_code == 200
         data = response.json()
@@ -204,10 +224,10 @@ class TestOrderEndpoints:
             order_id="order_456",
             symbol="ETH/USD",
             side="SELL",
-            size=Decimal("10.0"),
-            entry_price=Decimal("2000"),
-            stop_loss=Decimal("2100"),
-            take_profit=Decimal("1900"),
+            size="10.0",
+            entry_price="2000",
+            stop_loss="2100",
+            take_profit="1900",
             status="PENDING",
         )
         test_db.add(order)
@@ -227,14 +247,13 @@ class TestPositionEndpoints:
         """Test getting positions when none exist."""
         response = test_client.get(
             "/api/v1/positions",
-            params={"session_id": broker_session.session_id}
-        )
+            params={"session_id": broker_session.session_id}, headers=AUTH_HEADERS)
         
         assert response.status_code == 200
         data = response.json()
         assert data["positions"] == []
-        assert data["total_unrealized_pnl"] == "0"
-        assert data["drawdown_pct"] == 0.0
+        assert Decimal(data["total_unrealized_pnl"]) == Decimal("0")
+        assert Decimal(data["drawdown_pct"]) == Decimal("0")
         assert data["is_halted"] is False
 
     def test_get_positions_with_data(self, test_client: TestClient, broker_session: BrokerSession, test_db: Session):
@@ -244,10 +263,10 @@ class TestPositionEndpoints:
             session_id=broker_session.session_id,
             symbol="BTC/USD",
             side="LONG",
-            entry_price=Decimal("40000"),
-            current_price=Decimal("41000"),
-            size=Decimal("1.0"),
-            unrealized_pnl=Decimal("1000"),
+            entry_price="40000",
+            current_price="41000",
+            size="1.0",
+            unrealized_pnl="1000",
             status="OPEN",
         )
         test_db.add(position)
@@ -255,14 +274,13 @@ class TestPositionEndpoints:
         
         response = test_client.get(
             "/api/v1/positions",
-            params={"session_id": broker_session.session_id}
-        )
+            params={"session_id": broker_session.session_id}, headers=AUTH_HEADERS)
         
         assert response.status_code == 200
         data = response.json()
         assert len(data["positions"]) == 1
         assert data["positions"][0]["symbol"] == "BTC/USD"
-        assert data["total_unrealized_pnl"] == "1000"
+        assert Decimal(data["total_unrealized_pnl"]) == Decimal("1000")
 
 
 class TestAuditEndpoints:
@@ -272,8 +290,7 @@ class TestAuditEndpoints:
         """Test getting audit log when empty."""
         response = test_client.get(
             "/api/v1/audit",
-            params={"session_id": broker_session.session_id}
-        )
+            params={"session_id": broker_session.session_id}, headers=AUTH_HEADERS)
         
         assert response.status_code == 200
         data = response.json()
@@ -303,8 +320,7 @@ class TestAuditEndpoints:
         
         response = test_client.get(
             "/api/v1/audit",
-            params={"session_id": broker_session.session_id, "limit": 10}
-        )
+            params={"session_id": broker_session.session_id, "limit": 10}, headers=AUTH_HEADERS)
         
         assert response.status_code == 200
         data = response.json()
@@ -330,8 +346,7 @@ class TestAuditEndpoints:
         
         response = test_client.get(
             "/api/v1/audit",
-            params={"session_id": broker_session.session_id, "action": "ORDER_SUBMITTED"}
-        )
+            params={"session_id": broker_session.session_id, "action": "ORDER_SUBMITTED"}, headers=AUTH_HEADERS)
         
         assert response.status_code == 200
         data = response.json()

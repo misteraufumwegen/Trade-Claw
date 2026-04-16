@@ -1,0 +1,71 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master, develop]
+  pull_request:
+    branches: [main, master, develop]
+
+jobs:
+  lint:
+    name: Lint & Type-check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install tooling
+        run: |
+          python -m pip install --upgrade pip
+          pip install ruff mypy
+
+      - name: Ruff — lint
+        run: ruff check app tests
+
+      - name: Ruff — format check
+        run: ruff format --check app tests
+
+      - name: Mypy — static type check
+        run: mypy app
+
+  test:
+    name: Pytest
+    runs-on: ubuntu-latest
+    # Secrets are required by the startup validator.
+    env:
+      ENVIRONMENT: test
+      SECRET_KEY: test-secret-do-not-use-in-prod
+      ENCRYPTION_KEY: test-ci-encryption-key-placeholder
+      TRADE_CLAW_API_KEY: test-ci-api-key-placeholder
+      DB_USER: test
+      DB_PASSWORD: test
+      DB_NAME: test
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest pytest-asyncio pytest-cov pytest-timeout
+
+      - name: Run test suite
+        run: pytest --timeout=60 --cov=app --cov-report=xml --cov-report=term
+
+      - name: Upload coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-xml
+          path: coverage.xml

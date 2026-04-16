@@ -16,8 +16,7 @@ from sqlalchemy import (
     ForeignKey,
     Index,
 )
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import declarative_base, relationship
 
 Base = declarative_base()
 
@@ -68,12 +67,26 @@ class Order(Base):
     timestamp = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
     filled_at = Column(DateTime, nullable=True)
     cancelled_at = Column(DateTime, nullable=True)
-    risk_ratio = Column(Float, nullable=True)  # R/R ratio validation
+    risk_ratio = Column(Numeric(18, 8), nullable=True)  # R/R ratio validation (Decimal, H5)
+    # Client-supplied idempotency key (H4).
+    # UNIQUE per session, so identical retries return the same order.
+    idempotency_key = Column(String(128), nullable=True, index=True)
 
     # Relationships
     broker_session = relationship("BrokerSession", back_populates="orders")
 
-    __table_args__ = (Index("idx_session_symbol_timestamp", "session_id", "symbol", "timestamp"),)
+    __table_args__ = (
+        Index("idx_session_symbol_timestamp", "session_id", "symbol", "timestamp"),
+        Index(
+            "uq_orders_session_idempotency_key",
+            "session_id",
+            "idempotency_key",
+            unique=True,
+            # `postgresql_where` excludes NULLs so old orders without a key
+            # don't collide. For SQLite we just live with index-over-NULL.
+            postgresql_where=Column("idempotency_key").isnot(None),
+        ),
+    )
 
 
 class Position(Base):
@@ -143,3 +156,19 @@ class RiskLimit(Base):
     broker_session = relationship("BrokerSession", back_populates="risk_limits")
 
     __table_args__ = (Index("idx_session_halt_status", "session_id", "is_halted"),)
+
+
+class VaultSecret(Base):
+    """Encrypted credential vault storage (C3).
+
+    The column ``ciphertext`` holds Fernet ciphertext — never plaintext.
+    Access is mediated through ``app.vault.Vault``.
+    """
+
+    __tablename__ = "vault_secrets"
+
+    id = Column(Integer, primary_key=True, index=True)
+    key = Column(String(255), unique=True, nullable=False, index=True)
+    ciphertext = Column(Text, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

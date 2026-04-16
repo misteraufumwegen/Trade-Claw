@@ -269,24 +269,30 @@ class GraderEngine:
     def is_tradeable(
         self,
         grade: str,
-        drawdown_stage: int = 1
+        drawdown_stage: int = 1,
+        stage: Optional[int] = None,
     ) -> bool:
         """
         Check if setup is tradeable based on grade and drawdown stage.
-        
+
+        ``stage`` is an alias for ``drawdown_stage`` for convenience.
+
         Trading Matrix (from memory layer 7):
         - Stage 1 (Normal): A+, A, B allowed
         - Stage 2 (Caution): A+, A allowed
         - Stage 3 (Defense): A+ only
         - Stage 4+ (Emergency): No trades
-        
+
         Args:
             grade: Trade grade (A+, A, B, C, F)
             drawdown_stage: Current drawdown stage (1-4+)
-            
+            stage: Alias for drawdown_stage (takes precedence if provided)
+
         Returns:
             True if trade should be executed, False otherwise
         """
+        if stage is not None:
+            drawdown_stage = stage
         if drawdown_stage == 1:  # Normal
             return grade in [TradeGrade.A_PLUS.value, TradeGrade.A.value, TradeGrade.B.value]
         elif drawdown_stage == 2:  # Caution

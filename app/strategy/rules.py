@@ -39,21 +39,66 @@ class RulesEngine:
         
         self.load_rules()
     
+    # Top-level keys that the rest of the code expects under ``trading_rules``.
+    # If the YAML is missing or mis-typed here, we fail fast rather than
+    # silently serving empty rules (review finding M9).
+    _EXPECTED_KEYS = {
+        "entry": dict,
+        "exit": dict,
+        "risk_management": dict,
+    }
+
     def load_rules(self):
-        """Load rules from YAML file."""
+        """Load rules from YAML file with shape validation."""
         try:
-            with open(self.rules_path, 'r') as f:
-                data = yaml.safe_load(f)
-                self.rules = data.get('trading_rules', {})
-            
-            logger.info(f"✅ Rules loaded from {self.rules_path}")
-            self._log_rule_summary()
+            with open(self.rules_path, "r", encoding="utf-8") as f:
+                data = yaml.safe_load(f)  # safe_load: no arbitrary Python objects
         except FileNotFoundError:
-            logger.warning(f"⚠️  Rules file not found: {self.rules_path}")
+            logger.warning("Rules file not found: %s", self.rules_path)
             self.rules = {}
-        except yaml.YAMLError as e:
-            logger.error(f"❌ YAML parsing error: {e}")
+            return
+        except yaml.YAMLError:
+            logger.exception("YAML parsing error in %s", self.rules_path)
             self.rules = {}
+            return
+
+        if not isinstance(data, dict):
+            logger.error(
+                "Rules file %s must contain a top-level mapping, got %s",
+                self.rules_path,
+                type(data).__name__,
+            )
+            self.rules = {}
+            return
+
+        rules = data.get("trading_rules", {})
+        if not isinstance(rules, dict):
+            logger.error(
+                "'trading_rules' must be a mapping in %s (got %s)",
+                self.rules_path,
+                type(rules).__name__,
+            )
+            self.rules = {}
+            return
+
+        # Validate shape of expected sections — warn, don't crash, for
+        # backwards compatibility with partial configs.
+        for key, expected_type in self._EXPECTED_KEYS.items():
+            value = rules.get(key)
+            if value is None:
+                logger.warning("Missing section '%s' in rules file", key)
+            elif not isinstance(value, expected_type):
+                logger.error(
+                    "Section '%s' must be %s (got %s) — ignoring",
+                    key,
+                    expected_type.__name__,
+                    type(value).__name__,
+                )
+                rules[key] = expected_type()
+
+        self.rules = rules
+        logger.info("Rules loaded from %s", self.rules_path)
+        self._log_rule_summary()
     
     def _log_rule_summary(self):
         """Log summary of loaded rules."""

@@ -69,3 +69,13 @@ class InvalidOrderError(TradeClawException):
 class OrderCancellationError(TradeClawException):
     """Raised when order cannot be cancelled."""
     pass
+
+
+class OrderRejectedError(TradeClawException):
+    """Raised when broker rejects an order."""
+    pass
+
+
+class IdempotencyViolationError(TradeClawException):
+    """Raised when idempotency guarantees are violated."""
+    pass

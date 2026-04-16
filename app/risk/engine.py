@@ -27,10 +27,13 @@ class RiskValidationResult:
     halt_triggered: bool = False
 
 
-class RiskEngine:
+class DBRiskEngine:
     """
-    Risk validation engine for order submission.
-    
+    DB-backed risk validation engine for order submission (Phase 4).
+
+    Use this in FastAPI endpoints that have a SQLAlchemy session.
+    For standalone / no-db use, see :class:`RiskEngine`.
+
     Enforces:
     - Maximum position size (10% of account)
     - Minimum R/R ratio (1.5:1)
@@ -205,26 +208,40 @@ class RiskEngine:
         entry_price: Decimal,
         risk_limit: RiskLimit,
     ) -> RiskValidationResult:
-        """Check that new order doesn't exceed drawdown limits."""
-        # Calculate max risk for this order (if goes to SL)
-        # This is simplified - real implementation would calculate against account equity
-        
+        """
+        Check that the current drawdown has not breached the configured limit.
+
+        SIGN CONVENTION (documented for clarity, see review finding M1):
+        ``current_drawdown_pct`` and ``max_drawdown_pct`` are both stored as
+        **negative** numbers — e.g. ``-0.15`` means "15 % loss is the ceiling".
+        A deeper (more negative) current drawdown than the threshold is a
+        breach:
+
+            threshold = -0.15   (max 15 % loss allowed)
+            current   = -0.20   → -0.20 < -0.15 → BREACH
+            current   = -0.05   → -0.05 < -0.15 is False → OK
+        """
         current_drawdown = risk_limit.current_drawdown_pct
         max_drawdown_threshold = risk_limit.max_drawdown_pct
-        
+
+        # Equivalent, more readable form: |current| > |threshold|.
+        # We keep the numeric comparison to avoid ambiguity when sign is 0.
         if current_drawdown < max_drawdown_threshold:
             return RiskValidationResult(
                 approved=False,
                 level=RiskLevel.BREACH,
-                message=f"Drawdown {current_drawdown:.2%} exceeds limit {max_drawdown_threshold:.2%}",
+                message=(
+                    f"Drawdown {current_drawdown:.2%} exceeds limit "
+                    f"{max_drawdown_threshold:.2%}"
+                ),
                 reason="DRAWDOWN_LIMIT_BREACHED",
-                halt_triggered=True
+                halt_triggered=True,
             )
-        
+
         return RiskValidationResult(
             approved=True,
             level=RiskLevel.OK,
-            message=f"Drawdown check passed (current: {current_drawdown:.2%})"
+            message=f"Drawdown check passed (current: {current_drawdown:.2%})",
         )
 
     def _validate_daily_loss(
@@ -232,22 +249,30 @@ class RiskEngine:
         session_id: str,
         risk_limit: RiskLimit,
     ) -> RiskValidationResult:
-        """Check daily loss limit."""
+        """Check daily-loss limit.
+
+        Same sign convention as ``_validate_drawdown``: both values are stored
+        as negative percentages; the current daily loss is breached when it is
+        *more negative* than the threshold.
+        """
         current_daily_loss = risk_limit.current_daily_loss_pct
         max_daily_loss = risk_limit.max_daily_loss_pct
-        
+
         if current_daily_loss < max_daily_loss:
             return RiskValidationResult(
                 approved=False,
                 level=RiskLevel.BREACH,
-                message=f"Daily loss {current_daily_loss:.2%} exceeds limit {max_daily_loss:.2%}",
-                reason="DAILY_LOSS_LIMIT_BREACHED"
+                message=(
+                    f"Daily loss {current_daily_loss:.2%} exceeds limit "
+                    f"{max_daily_loss:.2%}"
+                ),
+                reason="DAILY_LOSS_LIMIT_BREACHED",
             )
-        
+
         return RiskValidationResult(
             approved=True,
             level=RiskLevel.OK,
-            message=f"Daily loss check passed (current: {current_daily_loss:.2%})"
+            message=f"Daily loss check passed (current: {current_daily_loss:.2%})",
         )
 
     def calculate_position_size(
@@ -332,9 +357,98 @@ class RiskEngine:
         if risk_limit and account_balance > 0:
             drawdown_pct = float(total_unrealized_pnl / account_balance)
             risk_limit.current_drawdown_pct = drawdown_pct
-            
+
             # Check if halt should be triggered
             if drawdown_pct < risk_limit.max_drawdown_pct and risk_limit.halt_on_breach:
                 risk_limit.is_halted = True
-        
+
         self.db.commit()
+
+
+# ---------------------------------------------------------------------------
+# Standalone RiskEngine (no database required)
+# ---------------------------------------------------------------------------
+
+from datetime import datetime as _datetime  # local import to avoid top-level cycle
+from typing import Tuple as _Tuple
+from app.risk.vault import RiskVault  # noqa: E402
+
+
+class RiskEngine:
+    """
+    Standalone risk engine backed by an in-memory :class:`RiskVault`.
+
+    Suitable for unit/integration tests and Phase 2 API endpoints that do
+    not have access to a SQLAlchemy session.  For production order validation
+    with a live database, use :class:`DBRiskEngine`.
+    """
+
+    def __init__(self) -> None:
+        self.vault = RiskVault()
+
+    def pre_trade_check(
+        self,
+        symbol: str,
+        side: str,
+        quantity: float,
+        entry_price: float,
+        account_equity: float,
+        stop_loss: float,
+        take_profit: float,
+    ) -> _Tuple[bool, dict]:
+        """
+        Run pre-trade risk checks.
+
+        Returns:
+            (approved: bool, details: dict)  where details['checks'] maps
+            each check name to True (passed) or False (failed).
+        """
+        checks: dict = {}
+
+        # Halt check
+        if self.vault.is_halted():
+            checks["halted"] = False
+            return False, {"checks": checks, "halt_reason": self.vault.halt_reason}
+        checks["halted"] = True
+
+        # Position size check
+        position_value = quantity * entry_price
+        ps_valid, ps_reason, ps_pct = self.vault.validate_position_size(
+            account_equity, position_value
+        )
+        checks["position_size"] = ps_valid
+        if not ps_valid:
+            return False, {"checks": checks, "reason": ps_reason, "position_pct": ps_pct}
+
+        # All checks passed
+        return True, {"checks": checks}
+
+    def execute_trade(
+        self,
+        trade_id: str,
+        symbol: str,
+        side: str,
+        quantity: float,
+        entry_price: float,
+        stop_loss: float,
+        take_profit: float,
+    ) -> bool:
+        """Execute a trade: record it and register the immutable stop-loss."""
+        self.vault.record_trade(
+            trade_id, symbol, side, quantity, entry_price, stop_loss, take_profit
+        )
+        self.vault.register_stop_loss(
+            trade_id=trade_id,
+            order_id=trade_id,
+            stop_loss=stop_loss,
+            symbol=symbol,
+        )
+        return True
+
+    def get_status(self) -> dict:
+        """Return a serialisable status snapshot."""
+        return {
+            "vault_status": self.vault.status(),
+            "halted": self.vault.is_halted(),
+            "timestamp": _datetime.utcnow().isoformat(),
+        }

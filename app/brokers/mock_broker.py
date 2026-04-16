@@ -72,8 +72,9 @@ class MockBrokerAdapter(BrokerAdapter):
         self.is_authenticated = False
 
     async def authenticate(self) -> bool:
-        """Mock authentication always succeeds"""
-        logger.info(f"Mock broker authenticating with key={self.api_key[:8]}...")
+        """Mock authentication always succeeds."""
+        # Do NOT log any portion of the API key (security review M5).
+        logger.info("Mock broker authenticating")
         await asyncio.sleep(0.1)  # Simulate network delay
         self.is_authenticated = True
         return True
@@ -156,12 +157,17 @@ class MockBrokerAdapter(BrokerAdapter):
             order.status = OrderStatus.PARTIALLY_FILLED
             order.average_fill_price = self.prices[order.symbol]
             logger.info(f"Order {order_id} partially filled: {filled_qty}")
-            
-            # Rest gets cancelled
+
+            # Remaining size is cancelled — but the 50 % that was filled must
+            # stay on the order, so downstream P&L/accounting is correct (M3).
             await asyncio.sleep(0.5)
-            order.filled_quantity = 0
-            order.status = OrderStatus.CANCELLED
-            logger.info(f"Order {order_id} cancelled (partial fill scenario)")
+            order.status = OrderStatus.CANCELLED   # state: partial + cancelled
+            logger.info(
+                "Order %s: remaining size cancelled after partial fill "
+                "(filled=%s)",
+                order_id,
+                filled_qty,
+            )
             return
         
         # Full fill

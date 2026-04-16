@@ -150,7 +150,7 @@ class TestGraderEngineSetupGrading:
             entry_price=2500,
             stop_loss_price=2700,
             tp1_price=2300,
-            tp2_price=2100,
+            tp2_price=1900,  # risk=200, reward2=600 → exactly 3:1 R/R
             criteria=criteria
         )
         

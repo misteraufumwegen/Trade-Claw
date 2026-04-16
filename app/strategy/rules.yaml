@@ -228,12 +228,14 @@ trading_rules:
 # MACRO EVENT INTEGRATION
 # ========================================================
 macro_events:
+  # NOTE: parentheses in list items broke the parser — moved the
+  # descriptions into a keyed map so they are explicit key/value pairs.
   categories:
-    - "Monetary Policy" (Fed, ECB, BOJ decisions)
-    - "Fiscal Policy" (Government stimulus, budget announcements)
-    - "Geopolitical" (Sanctions, conflicts, trade wars)
-    - "Economic Data" (CPI, Jobs, GDP, PMI)
-    - "On-Chain Events" (Bitcoin halving, ETH staking events)
+    Monetary Policy: "Fed, ECB, BOJ decisions"
+    Fiscal Policy: "Government stimulus, budget announcements"
+    Geopolitical: "Sanctions, conflicts, trade wars"
+    Economic Data: "CPI, Jobs, GDP, PMI"
+    On-Chain Events: "Bitcoin halving, ETH staking events"
   
   trigger_rules:
     green_light: "Event aligns with macro environment + entry rules"

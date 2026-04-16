@@ -215,24 +215,73 @@ class AuditLog:
         ]
     
     def export(self, filepath: Path, user_id: Optional[str] = None):
-        """Export audit trail to file"""
+        """Export audit trail to file, after verifying the hash chain (M8)."""
         try:
+            integrity = self.verify_integrity()
             events = self.get_for_user(user_id) if user_id else self.memory_events
-            
+
             data = {
                 "exported_at": datetime.utcnow().isoformat(),
                 "user_id": user_id,
                 "event_count": len(events),
+                "integrity": integrity,  # {"valid": bool, "checked": int, ...}
                 "events": [e.to_dict() for e in events],
             }
-            
-            with open(filepath, 'w') as f:
+
+            with open(filepath, "w") as f:
                 json.dump(data, f, indent=2, default=str)
-            
-            logger.info(f"Audit trail exported to {filepath}")
-        
-        except Exception as e:
-            logger.error(f"Failed to export audit trail: {e}")
+
+            if not integrity["valid"]:
+                logger.error(
+                    "Audit trail export flagged INVALID chain at entry %s — "
+                    "tampering suspected",
+                    integrity.get("first_bad_index"),
+                )
+            logger.info("Audit trail exported to %s", filepath)
+
+        except Exception:
+            logger.exception("Failed to export audit trail")
+
+    def verify_integrity(self) -> Dict[str, Any]:
+        """Replay the hash chain over the on-disk log and report status (M8).
+
+        Returns a dict with:
+            valid (bool): True iff every stored hash matches a fresh rehash.
+            checked (int): Number of entries validated.
+            first_bad_index (int | None): Index of the first tampered entry.
+        """
+        result: Dict[str, Any] = {
+            "valid": True,
+            "checked": 0,
+            "first_bad_index": None,
+        }
+        try:
+            if not self.log_file.exists():
+                return result
+
+            last_hash = "0"
+            with open(self.log_file, "r") as f:
+                for idx, line in enumerate(f):
+                    line = line.strip()
+                    if not line:
+                        continue
+                    entry = json.loads(line)
+                    stored_hash = entry.pop("_hash", None)
+                    entry_json = json.dumps(entry, sort_keys=True)
+                    recomputed = hashlib.sha256(
+                        f"{last_hash}{entry_json}".encode()
+                    ).hexdigest()
+                    if stored_hash != recomputed:
+                        result["valid"] = False
+                        result["first_bad_index"] = idx
+                        break
+                    last_hash = recomputed
+                    result["checked"] += 1
+        except Exception as exc:
+            logger.exception("verify_integrity() failed")
+            result["valid"] = False
+            result["error"] = str(exc)
+        return result
     
     def _get_log_file(self) -> Path:
         """Get current log file (daily rotation)"""

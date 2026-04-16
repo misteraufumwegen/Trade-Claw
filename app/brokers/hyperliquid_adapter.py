@@ -14,6 +14,7 @@ Docs: https://hyperliquid.gitbook.io/hyperliquid-docs/trading
 import asyncio
 import json
 import logging
+import time
 from datetime import datetime
 from typing import Dict, List, Optional, Any
 import aiohttp
@@ -85,23 +86,41 @@ class HyperliquidAdapter(BrokerAdapter):
         if not (1.0 <= self.leverage <= 20.0):
             raise ValueError("Leverage must be between 1.0 and 20.0")
         
-        # Initialize Web3 account for signing
+        # Initialize Web3 account for signing.
+        # IMPORTANT: do NOT include the raw exception text when rethrowing —
+        # it can contain the private key (security review C3/H-logging).
         try:
             # Ensure secret_key is properly formatted
             if not secret_key.startswith('0x'):
                 secret_key = '0x' + secret_key
-            
+
             self.account = Account.from_key(secret_key)
             self.wallet_address = self.account.address
-            logger.info(f"Hyperliquid wallet: {self.wallet_address}")
-        except Exception as e:
-            raise AuthenticationError(f"Invalid private key: {e}")
-        
+            # Log only the wallet address (public), never the key.
+            logger.info("Hyperliquid wallet authenticated: %s", self.wallet_address)
+        except Exception:
+            # Intentionally swallow original exception message — it may contain
+            # the private key passed to eth_account.
+            raise AuthenticationError("Invalid Hyperliquid private key")
+
         # Session and state
         self.session: Optional[aiohttp.ClientSession] = None
         self.orders: Dict[str, Order] = {}
         self.positions: Dict[str, Position] = {}
-        self.nonce = 0
+
+        # Monotonic, async-safe nonce. Initialised from the wall clock (ms) so
+        # that it stays monotonic across process restarts as long as the clock
+        # does not go backwards. See security review C6.
+        self._nonce_lock = asyncio.Lock()
+        self._nonce = int(time.time() * 1000)
+
+    async def _next_nonce(self) -> int:
+        """Return a fresh, strictly-increasing nonce. Concurrency-safe."""
+        async with self._nonce_lock:
+            now_ms = int(time.time() * 1000)
+            # Never go backwards — always +1 over the previous value.
+            self._nonce = max(self._nonce + 1, now_ms)
+            return self._nonce
     
     async def authenticate(self) -> bool:
         """Verify wallet and API access"""
@@ -201,19 +220,20 @@ class HyperliquidAdapter(BrokerAdapter):
             # Submit signed order
             if not self.session:
                 self.session = aiohttp.ClientSession()
-            
+
+            # Atomically reserve a nonce for this request (C6).
+            nonce = await self._next_nonce()
+
             response = await self.session.post(
                 f"{self.base_url}/exchange",
                 json={
                     "action": "placeOrder",
-                    "nonce": self.nonce,
+                    "nonce": nonce,
                     "order": hl_order,
                     "signature": signature,
                 },
                 timeout=aiohttp.ClientTimeout(total=10),
             )
-            
-            self.nonce += 1
             
             if response.status != 200:
                 data = await response.json()
@@ -365,18 +385,17 @@ class HyperliquidAdapter(BrokerAdapter):
                 "orderId": order_id,
             }
             
+            nonce = await self._next_nonce()
             response = await self.session.post(
                 f"{self.base_url}/exchange",
                 json={
                     "action": "cancelOrder",
-                    "nonce": self.nonce,
+                    "nonce": nonce,
                     "order": cancel_data,
                     "signature": self._sign_order(cancel_data),
                 },
                 timeout=aiohttp.ClientTimeout(total=10),
             )
-            
-            self.nonce += 1
             
             if response.status == 200:
                 order.status = OrderStatus.CANCELLED

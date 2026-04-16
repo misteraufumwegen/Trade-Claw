@@ -17,13 +17,21 @@ import asyncio
 
 
 class OrderDirection(Enum):
-    """Order direction"""
+    """Direction of an order — BUY (long) or SELL (short / close long)."""
+
     BUY = "BUY"
     SELL = "SELL"
 
 
 class OrderType(Enum):
-    """Order types"""
+    """Order execution style.
+
+    - MARKET:     Execute immediately at the best available price.
+    - LIMIT:      Execute only at ``price`` or better.
+    - STOP:       Becomes a MARKET order once ``stop_price`` is touched.
+    - STOP_LIMIT: Becomes a LIMIT order at ``price`` once ``stop_price`` is touched.
+    """
+
     MARKET = "MARKET"
     LIMIT = "LIMIT"
     STOP = "STOP"
@@ -31,7 +39,12 @@ class OrderType(Enum):
 
 
 class OrderStatus(Enum):
-    """Order lifecycle statuses"""
+    """Lifecycle states for an order.
+
+    ``PENDING`` → ``ACCEPTED`` → (``PARTIALLY_FILLED`` →) ``FILLED`` |
+    ``CANCELLED`` | ``REJECTED`` | ``EXPIRED``.
+    """
+
     PENDING = "PENDING"
     ACCEPTED = "ACCEPTED"
     FILLED = "FILLED"

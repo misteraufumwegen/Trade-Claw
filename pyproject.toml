@@ -1,0 +1,71 @@
+# ---------------------------------------------------------------------------
+# Tool configuration for Trade-Claw.
+# Added to close review finding H9 (no code-quality enforcement).
+# ---------------------------------------------------------------------------
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+extend-exclude = [
+    "alembic/versions",
+    "migrations",
+]
+
+[tool.ruff.lint]
+select = [
+    "E",    # pycodestyle errors
+    "F",    # pyflakes
+    "W",    # pycodestyle warnings
+    "I",    # isort
+    "B",    # flake8-bugbear
+    "UP",   # pyupgrade
+    "ASYNC",# async-specific
+    "S",    # bandit (security)
+    "C4",   # comprehensions
+    "T20",  # ban `print` outside of CLI demos
+]
+ignore = [
+    "E501",   # line-length handled by formatter
+    "S101",   # assert — fine in tests
+    "S105",   # hardcoded-password-string false positives on broker docs
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S101", "S105", "S106"]
+"app/macro/event_*.py" = ["T201"]  # CLI demo prints are intentional
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+line-ending = "lf"
+
+[tool.mypy]
+python_version = "3.11"
+strict_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_return_any = true
+check_untyped_defs = true
+disallow_incomplete_defs = true
+# Gradual: most files aren't typed yet. Opt-in strictness per module later.
+disallow_untyped_defs = false
+ignore_missing_imports = true
+exclude = ["alembic/versions", "migrations"]
+
+[tool.pytest.ini_options]
+minversion = "7.0"
+addopts = "-ra --strict-markers --strict-config"
+testpaths = ["tests"]
+asyncio_mode = "auto"
+markers = [
+    "slow: marks tests as slow (skipped by default with -m 'not slow')",
+    "integration: marks tests that need a real broker sandbox",
+]
+filterwarnings = [
+    "error::DeprecationWarning",
+    "ignore::DeprecationWarning:sqlalchemy.*",
+]
+
+[tool.coverage.run]
+source = ["app"]
+omit = ["app/macro/event_fetcher.py", "app/macro/event_filters.py"]

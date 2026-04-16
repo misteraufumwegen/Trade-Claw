@@ -40,10 +40,11 @@ class TestVaultKeyGeneration:
         """Test initializing vault with a provided key."""
         key = Vault.generate_key()
         vault = Vault.initialize(master_key=key)
-        
+
         assert vault is not None
         assert vault.master_key == key
-        assert len(vault.storage) == 0
+        # Storage is now a pluggable backend; use the public API.
+        assert vault.get_storage_size() == 0
     
     def test_initialize_without_key(self):
         """Test initializing vault without a key (auto-generates)."""

@@ -9,6 +9,7 @@ Features:
 - Handles connection failures and failover
 """
 
+import asyncio
 import logging
 from typing import Dict, Optional, Any
 from datetime import datetime, timedelta
@@ -83,13 +84,22 @@ class BrokerSessionRouter:
     def __init__(self, audit_log: Optional[AuditLog] = None):
         """
         Initialize router.
-        
+
         Args:
             audit_log: Audit logging instance
         """
         self.sessions: Dict[str, BrokerSession] = {}
         self.user_sessions: Dict[str, str] = {}  # user_id -> session_id
         self.audit_log = audit_log or AuditLog()
+        # Guards concurrent create/close (M10). asyncio.Lock() must be created
+        # inside an event loop; create lazily so that sync import-time usage
+        # (e.g. in tests) still works.
+        self._lock: Optional[asyncio.Lock] = None
+
+    def _get_lock(self) -> asyncio.Lock:
+        if self._lock is None:
+            self._lock = asyncio.Lock()
+        return self._lock
     
     async def create_session(
         self,
@@ -140,18 +150,19 @@ class BrokerSessionRouter:
             audit_log=self.audit_log,
         )
         
-        # Store session
-        self.sessions[session_id] = session
-        self.user_sessions[user_id] = session_id
-        
+        # Store session under lock to avoid concurrent overwrites (M10).
+        async with self._get_lock():
+            self.sessions[session_id] = session
+            self.user_sessions[user_id] = session_id
+
         # Audit
         self.audit_log.log(
             action="SESSION_CREATED",
             session_id=session_id,
             details={"user_id": user_id, "broker": broker_type.value},
         )
-        
-        logger.info(f"Session created: {session_id}")
+
+        logger.info("Session created: %s", session_id)
         return session
     
     async def get_session(self, user_id: str) -> Optional[BrokerSession]:
@@ -191,11 +202,12 @@ class BrokerSessionRouter:
         try:
             await session.broker.disconnect()
             session.status = SessionStatus.DISCONNECTED
-            
-            # Remove from mappings
-            if session.user_id in self.user_sessions:
-                del self.user_sessions[session.user_id]
-            del self.sessions[session_id]
+
+            # Remove from mappings under lock (M10).
+            async with self._get_lock():
+                if session.user_id in self.user_sessions:
+                    del self.user_sessions[session.user_id]
+                self.sessions.pop(session_id, None)
             
             self.audit_log.log(
                 action="SESSION_CLOSED",

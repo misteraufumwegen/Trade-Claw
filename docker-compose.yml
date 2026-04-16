@@ -1,20 +1,27 @@
 version: '3.9'
 
+# ---------------------------------------------------------------------------
+# All secret-bearing env vars use the `${VAR:?message}` form: if the variable
+# is not set, docker-compose aborts before starting containers. This prevents
+# deployments that would otherwise fall back to the old `change-me-in-
+# production` defaults (security finding C2).
+# ---------------------------------------------------------------------------
+
 services:
   postgres:
     image: postgres:15-alpine
     container_name: trading-bot-postgres
     environment:
-      POSTGRES_USER: ${DB_USER:-trading_user}
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-trading_password}
-      POSTGRES_DB: ${DB_NAME:-trading_bot}
+      POSTGRES_USER: ${DB_USER:?DB_USER must be set in .env}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD must be set in .env}
+      POSTGRES_DB: ${DB_NAME:?DB_NAME must be set in .env}
     ports:
       - "${DB_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./migrations/init.sql:/docker-entrypoint-initdb.d/init.sql
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-trading_user}"]
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -42,10 +49,16 @@ services:
       dockerfile: Dockerfile
     container_name: trading-bot-api
     environment:
-      DATABASE_URL: postgresql+asyncpg://${DB_USER:-trading_user}:${DB_PASSWORD:-trading_password}@postgres:5432/${DB_NAME:-trading_bot}
+      DATABASE_URL: postgresql+asyncpg://${DB_USER}:${DB_PASSWORD}@postgres:5432/${DB_NAME}
       REDIS_URL: redis://redis:6379/0
       ENVIRONMENT: ${ENVIRONMENT:-development}
-      SECRET_KEY: ${SECRET_KEY:-change-me-in-production}
+      # Required secrets — no fallback. The app also verifies these at startup
+      # via app/security/settings.py.
+      SECRET_KEY: ${SECRET_KEY:?SECRET_KEY must be set in .env}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:?ENCRYPTION_KEY must be set in .env}
+      TRADE_CLAW_API_KEY: ${TRADE_CLAW_API_KEY:?TRADE_CLAW_API_KEY must be set in .env}
+      CORS_ORIGINS: ${CORS_ORIGINS:-}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
     ports:
       - "${API_PORT:-8000}:8000"
     depends_on:
@@ -55,6 +68,7 @@ services:
         condition: service_healthy
     volumes:
       - ./app:/app/app
+    # NOTE: remove `--reload` for production deployments.
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
     networks:
       - trading_network
