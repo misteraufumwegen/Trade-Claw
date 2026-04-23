@@ -167,9 +167,27 @@ If any blocker occurs:
 2. Commit with `WIP` flag
 3. Cron job reports to Jarvis → escalated to Deniz if critical
 
-### BLOCKERS (None yet)
+### BLOCKERS (CRITICAL - SPRINT_1 INCOMPLETE)
 ```
-[Will be updated by Cron job if blockers appear]
+🔴 BLOCKER #1: Integration Layer Incomplete (Hour 11-15)
+   Redux async thunks created but not dispatched from components.
+   Impact: Frontend cannot call backend APIs.
+
+🔴 BLOCKER #2: React 19 + Redux Toolkit Incompatibility (Hour 16-20)
+   Package dependency conflict during docker-compose build.
+   Impact: Frontend service build fails.
+
+🔴 BLOCKER #3: WebSocket Not Started
+   Live quote updates require WebSocket setup (not implemented).
+   Impact: Real-time data unavailable.
+
+⏳ CURRENT STATUS: 75% Complete (8 of 9 criteria met, 3 critical blockers)
+   ✓ Design System + Components + Mockups: 100%
+   ✓ Backend APIs: 100% (mock-ready, OANDA client ready)
+   ✓ Frontend Pages: 100% structure (not connected to backend)
+   ✗ Integration: 30% (thunks created, dispatch not wired)
+   ✗ Docker + Testing: 0% (blocked)
+   ✗ SPRINT_1_COMPLETE: NOT MET
 ```
 
 ---
