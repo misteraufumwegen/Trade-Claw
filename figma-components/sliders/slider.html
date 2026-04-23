@@ -1,0 +1,138 @@
+<!-- Slider Component Examples -->
+<html>
+<head>
+  <link rel="stylesheet" href="../../figma-export/design-tokens/css-variables.css">
+  <link rel="stylesheet" href="slider.css">
+  <style>
+    body {
+      padding: var(--spacing-l);
+      display: grid;
+      gap: var(--spacing-2xl);
+      max-width: 600px;
+    }
+    .section {
+      display: flex;
+      flex-direction: column;
+      gap: var(--spacing-l);
+    }
+    .section-title {
+      font-weight: var(--font-weight-bold);
+      font-size: var(--font-size-lg);
+      color: var(--color-primary);
+    }
+  </style>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      // Update slider background as thumb moves
+      document.querySelectorAll('input[type="range"]').forEach(slider => {
+        const updateSlider = () => {
+          const value = (slider.value - slider.min) / (slider.max - slider.min) * 100;
+          slider.style.setProperty('--value', value + '%');
+        };
+        slider.addEventListener('input', updateSlider);
+        slider.addEventListener('change', updateSlider);
+        updateSlider();
+      });
+    });
+  </script>
+</head>
+<body>
+  <!-- BASIC SLIDER -->
+  <div class="section">
+    <div class="section-title">Basic Slider</div>
+    
+    <div class="slider-container">
+      <div class="slider-label">
+        <span>Risk Percentage</span>
+        <span class="slider-value" id="value1">50%</span>
+      </div>
+      <input type="range" min="0" max="100" value="50" onchange="document.getElementById('value1').textContent = this.value + '%'">
+    </div>
+  </div>
+
+  <!-- SLIDER WITH TICK MARKS -->
+  <div class="section">
+    <div class="section-title">Slider with Tick Marks</div>
+    
+    <div class="slider-container slider-with-ticks">
+      <div class="slider-label">
+        <span>Position Size (Lot)</span>
+        <span class="slider-value" id="value2">0.5</span>
+      </div>
+      <input type="range" min="0.1" max="1.0" step="0.1" value="0.5" onchange="document.getElementById('value2').textContent = this.value">
+      <div class="slider-ticks">
+        <div class="slider-tick">0.1</div>
+        <div class="slider-tick">0.3</div>
+        <div class="slider-tick">0.5</div>
+        <div class="slider-tick">0.7</div>
+        <div class="slider-tick">1.0</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RANGE SLIDER (MIN/MAX) -->
+  <div class="section">
+    <div class="section-title">Range Slider (Min/Max)</div>
+    
+    <div class="slider-container">
+      <div class="slider-label">
+        <span>Price Range (USD)</span>
+      </div>
+      <div class="slider-range">
+        <div class="slider-range-inputs">
+          <div class="slider-range-input">
+            <input type="number" value="100" step="1" placeholder="Min">
+          </div>
+          <span style="color: var(--color-text-secondary);">to</span>
+          <div class="slider-range-input">
+            <input type="number" value="500" step="1" placeholder="Max">
+          </div>
+        </div>
+        <input type="range" min="0" max="1000" value="250">
+      </div>
+    </div>
+  </div>
+
+  <!-- COLORED SLIDERS -->
+  <div class="section">
+    <div class="section-title">Colored Sliders</div>
+    
+    <div class="slider-container slider-success">
+      <div class="slider-label">
+        <span>Success (Win Rate)</span>
+        <span class="slider-value">65%</span>
+      </div>
+      <input type="range" min="0" max="100" value="65">
+    </div>
+
+    <div class="slider-container slider-danger">
+      <div class="slider-label">
+        <span>Danger (Drawdown)</span>
+        <span class="slider-value">15%</span>
+      </div>
+      <input type="range" min="0" max="100" value="15">
+    </div>
+
+    <div class="slider-container slider-accent">
+      <div class="slider-label">
+        <span>Accent (Trade Duration)</span>
+        <span class="slider-value">2.5h</span>
+      </div>
+      <input type="range" min="0" max="24" step="0.5" value="2.5">
+    </div>
+  </div>
+
+  <!-- DISABLED SLIDER -->
+  <div class="section">
+    <div class="section-title">Disabled Slider</div>
+    
+    <div class="slider-container">
+      <div class="slider-label">
+        <span>Locked Setting</span>
+        <span class="slider-value">50%</span>
+      </div>
+      <input type="range" min="0" max="100" value="50" disabled>
+    </div>
+  </div>
+</body>
+</html>

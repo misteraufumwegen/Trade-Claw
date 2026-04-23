@@ -1,0 +1,183 @@
+<!-- Alert, Badge, Toast Component Examples -->
+<html>
+<head>
+  <link rel="stylesheet" href="../../figma-export/design-tokens/css-variables.css">
+  <link rel="stylesheet" href="alert.css">
+  <style>
+    body {
+      padding: var(--spacing-l);
+      display: grid;
+      gap: var(--spacing-2xl);
+      max-width: 800px;
+    }
+    .section {
+      display: flex;
+      flex-direction: column;
+      gap: var(--spacing-m);
+    }
+    .section-title {
+      font-weight: var(--font-weight-bold);
+      font-size: var(--font-size-lg);
+      color: var(--color-primary);
+    }
+    .badge-group {
+      display: flex;
+      gap: var(--spacing-m);
+      flex-wrap: wrap;
+      align-items: center;
+    }
+  </style>
+</head>
+<body>
+  <!-- SUCCESS ALERTS -->
+  <div class="section">
+    <div class="section-title">Success Alerts</div>
+    
+    <div class="alert alert-success">
+      <div class="alert-icon">✓</div>
+      <div class="alert-content">
+        <div class="alert-title">Order Executed</div>
+        <div class="alert-description">Your EUR/USD buy order has been executed at 1.0920</div>
+      </div>
+      <button class="alert-close">✕</button>
+    </div>
+
+    <div class="alert alert-success">
+      <div class="alert-icon">✓</div>
+      <div class="alert-content">
+        <div class="alert-title">Trade Closed</div>
+        <div class="alert-description">Position closed with profit: +$450</div>
+      </div>
+      <button class="alert-close">✕</button>
+    </div>
+  </div>
+
+  <!-- DANGER ALERTS -->
+  <div class="section">
+    <div class="section-title">Danger Alerts</div>
+    
+    <div class="alert alert-danger">
+      <div class="alert-icon">⚠</div>
+      <div class="alert-content">
+        <div class="alert-title">Stop Loss Hit</div>
+        <div class="alert-description">Your USD/JPY position was closed due to stop loss at 149.80</div>
+      </div>
+      <button class="alert-close">✕</button>
+    </div>
+
+    <div class="alert alert-danger">
+      <div class="alert-icon">🛑</div>
+      <div class="alert-content">
+        <div class="alert-title">Critical</div>
+        <div class="alert-description">Account heat is above 80%. No new trades allowed.</div>
+      </div>
+      <button class="alert-close">✕</button>
+    </div>
+  </div>
+
+  <!-- WARNING ALERTS -->
+  <div class="section">
+    <div class="section-title">Warning Alerts</div>
+    
+    <div class="alert alert-warning">
+      <div class="alert-icon">⚡</div>
+      <div class="alert-content">
+        <div class="alert-title">High Volatility</div>
+        <div class="alert-description">Volatility spike detected. Consider reducing position size.</div>
+      </div>
+      <button class="alert-close">✕</button>
+    </div>
+  </div>
+
+  <!-- INFO ALERTS -->
+  <div class="section">
+    <div class="section-title">Info Alerts</div>
+    
+    <div class="alert alert-info">
+      <div class="alert-icon">ℹ</div>
+      <div class="alert-content">
+        <div class="alert-title">Market Update</div>
+        <div class="alert-description">ECB interest rate decision scheduled for 14:00 CET</div>
+      </div>
+      <button class="alert-close">✕</button>
+    </div>
+  </div>
+
+  <!-- BADGES -->
+  <div class="section">
+    <div class="section-title">Badges</div>
+    
+    <div class="badge-group">
+      <span class="badge badge-success">✓ Active</span>
+      <span class="badge badge-danger">⚠ Stop Loss</span>
+      <span class="badge badge-warning">⚡ Pending</span>
+      <span class="badge badge-info">ℹ Alert</span>
+      <span class="badge badge-neutral">—</span>
+    </div>
+
+    <div class="badge-group">
+      <span class="badge badge-success badge-with-icon">
+        <span>✓</span>
+        <span>Profitable</span>
+      </span>
+      <span class="badge badge-danger badge-with-icon">
+        <span>✕</span>
+        <span>Loss</span>
+      </span>
+      <span class="badge badge-warning badge-with-icon">
+        <span>⚡</span>
+        <span>High Risk</span>
+      </span>
+    </div>
+  </div>
+
+  <!-- TOAST NOTIFICATIONS -->
+  <div class="section">
+    <div class="section-title">Toast Notifications (Bottom Right)</div>
+    <p style="color: var(--color-text-secondary); font-size: var(--font-size-sm);">
+      Toasts appear in fixed position at bottom-right. Scroll down to see examples.
+    </p>
+  </div>
+
+  <!-- Toast Examples (visible on page) -->
+  <div style="margin-top: var(--spacing-2xl); padding: var(--spacing-l); background-color: var(--color-secondary); border-radius: var(--radius-lg); border: 1px solid var(--color-border);">
+    <h3 style="margin-top: 0; color: var(--color-primary);">Toast Example Mockups:</h3>
+    
+    <div style="margin-top: var(--spacing-l); position: relative; height: 150px; border: 1px dashed var(--color-border); border-radius: var(--radius-md); padding: var(--spacing-m);">
+      <div class="toast toast-success" style="position: absolute; width: 300px; bottom: var(--spacing-m); right: var(--spacing-m);">
+        <div class="toast-icon">✓</div>
+        <div class="toast-content">
+          <div class="toast-title">Trade Closed</div>
+          <div class="toast-message">Position EUR/USD closed with +$450 profit</div>
+        </div>
+        <button class="toast-close">✕</button>
+        <div class="toast-progress"></div>
+      </div>
+    </div>
+
+    <div style="margin-top: var(--spacing-l); position: relative; height: 150px; border: 1px dashed var(--color-border); border-radius: var(--radius-md); padding: var(--spacing-m);">
+      <div class="toast toast-danger" style="position: absolute; width: 300px; bottom: var(--spacing-m); right: var(--spacing-m);">
+        <div class="toast-icon">⚠</div>
+        <div class="toast-content">
+          <div class="toast-title">Stop Loss</div>
+          <div class="toast-message">USD/JPY position closed at stop loss</div>
+        </div>
+        <button class="toast-close">✕</button>
+        <div class="toast-progress"></div>
+      </div>
+    </div>
+
+    <div style="margin-top: var(--spacing-l); position: relative; height: 150px; border: 1px dashed var(--color-border); border-radius: var(--radius-md); padding: var(--spacing-m);">
+      <div class="toast toast-info" style="position: absolute; width: 300px; bottom: var(--spacing-m); right: var(--spacing-m);">
+        <div class="toast-icon">ℹ</div>
+        <div class="toast-content">
+          <div class="toast-title">Update</div>
+          <div class="toast-message">New strategy rules applied successfully</div>
+        </div>
+        <button class="toast-close">✕</button>
+        <div class="toast-progress"></div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

@@ -1,0 +1,84 @@
+<!-- Button Component Examples -->
+<html>
+<head>
+  <link rel="stylesheet" href="../../figma-export/design-tokens/css-variables.css">
+  <link rel="stylesheet" href="button.css">
+  <style>
+    body {
+      padding: var(--spacing-l);
+      display: grid;
+      gap: var(--spacing-2xl);
+    }
+    .section {
+      display: flex;
+      flex-direction: column;
+      gap: var(--spacing-m);
+    }
+    .section-title {
+      font-weight: var(--font-weight-bold);
+      font-size: var(--font-size-lg);
+      color: var(--color-primary);
+    }
+    .button-row {
+      display: flex;
+      gap: var(--spacing-m);
+      flex-wrap: wrap;
+      align-items: center;
+    }
+  </style>
+</head>
+<body>
+  <!-- PRIMARY BUTTONS -->
+  <div class="section">
+    <div class="section-title">Primary Button</div>
+    <div class="button-row">
+      <button class="btn btn-primary">Default</button>
+      <button class="btn btn-primary">Hover</button>
+      <button class="btn btn-primary">Active</button>
+      <button class="btn btn-primary" disabled>Disabled</button>
+    </div>
+  </div>
+
+  <!-- SECONDARY BUTTONS -->
+  <div class="section">
+    <div class="section-title">Secondary Button</div>
+    <div class="button-row">
+      <button class="btn btn-secondary">Default</button>
+      <button class="btn btn-secondary">Hover</button>
+      <button class="btn btn-secondary">Active</button>
+      <button class="btn btn-secondary" disabled>Disabled</button>
+    </div>
+  </div>
+
+  <!-- DANGER BUTTONS -->
+  <div class="section">
+    <div class="section-title">Danger Button</div>
+    <div class="button-row">
+      <button class="btn btn-danger">Delete</button>
+      <button class="btn btn-danger">Hover</button>
+      <button class="btn btn-danger">Active</button>
+      <button class="btn btn-danger" disabled>Disabled</button>
+    </div>
+  </div>
+
+  <!-- SIZE VARIANTS -->
+  <div class="section">
+    <div class="section-title">Size Variants</div>
+    <div class="button-row">
+      <button class="btn btn-primary btn-sm">Small</button>
+      <button class="btn btn-primary">Medium (Default)</button>
+      <button class="btn btn-primary btn-lg">Large</button>
+    </div>
+  </div>
+
+  <!-- ICON BUTTON -->
+  <div class="section">
+    <div class="section-title">Icon Button</div>
+    <div class="button-row">
+      <button class="btn btn-primary btn-icon">⚙</button>
+      <button class="btn btn-secondary btn-icon">✕</button>
+      <button class="btn btn-danger btn-icon">⚠</button>
+    </div>
+  </div>
+</body>
+</html>

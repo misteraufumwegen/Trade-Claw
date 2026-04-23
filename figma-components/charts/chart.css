@@ -1,0 +1,323 @@
+/* Chart Component Stubs - Candlestick, Line, Equity Curve */
+/* Uses design tokens from figma-export/design-tokens */
+/* Full implementation requires TradingView Lightweight Charts or Chart.js library */
+
+/* Base Chart Container */
+.chart-container {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-m);
+  padding: var(--spacing-m);
+  background-color: var(--color-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  width: 100%;
+}
+
+.chart-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.chart-title {
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-primary);
+}
+
+.chart-controls {
+  display: flex;
+  gap: var(--spacing-s);
+}
+
+.chart-timeframe {
+  display: flex;
+  gap: var(--spacing-xs);
+}
+
+.chart-timeframe button {
+  padding: var(--spacing-xs) var(--spacing-s);
+  font-size: var(--font-size-xs);
+  background-color: transparent;
+  color: var(--color-text-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.chart-timeframe button.active {
+  background-color: var(--color-primary);
+  color: var(--color-dark);
+  border-color: var(--color-primary);
+}
+
+.chart-timeframe button:hover {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+/* SVG Chart Canvas */
+.chart-canvas {
+  width: 100%;
+  height: 400px;
+  background-color: var(--color-dark);
+  border-radius: var(--radius-md);
+  position: relative;
+}
+
+svg.chart-svg {
+  width: 100%;
+  height: 100%;
+}
+
+/* CANDLESTICK CHART */
+.candlestick {
+  /* SVG elements will be rendered by charting library */
+}
+
+.candle-wick {
+  stroke-width: 1;
+}
+
+.candle-body {
+  stroke-width: 1;
+}
+
+.candle-bullish .candle-body {
+  fill: var(--color-success);
+  stroke: var(--color-success);
+}
+
+.candle-bearish .candle-body {
+  fill: var(--color-dark);
+  stroke: var(--color-danger);
+}
+
+.candle-bullish .candle-wick {
+  stroke: var(--color-success);
+}
+
+.candle-bearish .candle-wick {
+  stroke: var(--color-danger);
+}
+
+/* LINE CHART */
+.line-chart {
+  position: relative;
+}
+
+.line-path {
+  fill: none;
+  stroke: var(--color-primary);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.line-area {
+  fill: url(#lineGradient);
+  opacity: 0.1;
+}
+
+.chart-legend {
+  display: flex;
+  gap: var(--spacing-m);
+  padding-top: var(--spacing-m);
+  border-top: 1px solid var(--color-border);
+  flex-wrap: wrap;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-s);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+}
+
+.legend-color {
+  width: 12px;
+  height: 12px;
+  border-radius: 2px;
+}
+
+.legend-item.primary .legend-color {
+  background-color: var(--color-primary);
+}
+
+.legend-item.success .legend-color {
+  background-color: var(--color-success);
+}
+
+.legend-item.danger .legend-color {
+  background-color: var(--color-danger);
+}
+
+/* EQUITY CURVE CHART */
+.equity-curve {
+  position: relative;
+}
+
+.equity-path {
+  fill: none;
+  stroke: var(--color-primary);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.equity-area {
+  fill: url(#equityGradient);
+  opacity: 0.15;
+}
+
+/* Chart Grid */
+.chart-grid line {
+  stroke: var(--color-border);
+  stroke-width: 0.5;
+  opacity: 0.5;
+}
+
+.chart-grid text {
+  font-size: var(--font-size-xs);
+  fill: var(--color-text-secondary);
+  font-family: var(--font-mono);
+}
+
+/* Chart Axes */
+.chart-axis line {
+  stroke: var(--color-border);
+  stroke-width: 1;
+}
+
+.chart-axis text {
+  font-size: var(--font-size-xs);
+  fill: var(--color-text-secondary);
+  font-family: var(--font-mono);
+}
+
+.chart-axis-label {
+  font-size: var(--font-size-xs);
+  fill: var(--color-text-secondary);
+  font-weight: var(--font-weight-bold);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Tooltip */
+.chart-tooltip {
+  position: absolute;
+  background-color: var(--color-dark);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-s) var(--spacing-m);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-primary);
+  pointer-events: none;
+  z-index: 10;
+  display: none;
+  white-space: nowrap;
+  box-shadow: var(--shadow-md);
+}
+
+.chart-tooltip.visible {
+  display: block;
+}
+
+.chart-tooltip-label {
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-secondary);
+}
+
+.chart-tooltip-value {
+  font-family: var(--font-mono);
+  color: var(--color-primary);
+  margin-top: var(--spacing-xs);
+}
+
+/* Crosshair */
+.chart-crosshair {
+  position: absolute;
+  pointer-events: none;
+  display: none;
+  z-index: 5;
+}
+
+.chart-crosshair.visible {
+  display: block;
+}
+
+.crosshair-h,
+.crosshair-v {
+  position: absolute;
+  background-color: var(--color-primary);
+  opacity: 0.3;
+}
+
+.crosshair-h {
+  height: 1px;
+  width: 100%;
+  top: 50%;
+}
+
+.crosshair-v {
+  width: 1px;
+  height: 100%;
+  left: 50%;
+}
+
+/* Chart Stats Overlay */
+.chart-stats {
+  position: absolute;
+  top: var(--spacing-m);
+  right: var(--spacing-m);
+  background-color: rgba(13, 17, 23, 0.9);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-m);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+  font-family: var(--font-mono);
+  line-height: 1.6;
+}
+
+.chart-stat-row {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--spacing-l);
+}
+
+.chart-stat-label {
+  color: var(--color-text-secondary);
+}
+
+.chart-stat-value {
+  color: var(--color-text-primary);
+  font-weight: var(--font-weight-bold);
+}
+
+.chart-stat-value.positive {
+  color: var(--color-success);
+}
+
+.chart-stat-value.negative {
+  color: var(--color-danger);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .chart-canvas {
+    height: 300px;
+  }
+
+  .chart-timeframe {
+    flex-wrap: wrap;
+  }
+
+  .chart-stats {
+    font-size: var(--font-size-xs);
+    padding: var(--spacing-s);
+  }
+}

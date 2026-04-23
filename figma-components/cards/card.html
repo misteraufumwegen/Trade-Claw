@@ -1,0 +1,97 @@
+<!-- Card Component Examples -->
+<html>
+<head>
+  <link rel="stylesheet" href="../../figma-export/design-tokens/css-variables.css">
+  <link rel="stylesheet" href="card.css">
+  <style>
+    body {
+      padding: var(--spacing-l);
+      display: grid;
+      gap: var(--spacing-2xl);
+      max-width: 1200px;
+    }
+    .section {
+      display: flex;
+      flex-direction: column;
+      gap: var(--spacing-m);
+    }
+    .section-title {
+      font-weight: var(--font-weight-bold);
+      font-size: var(--font-size-lg);
+      color: var(--color-primary);
+    }
+    .card-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: var(--spacing-l);
+    }
+  </style>
+</head>
+<body>
+  <!-- STANDARD CARD -->
+  <div class="section">
+    <div class="section-title">Standard Card</div>
+    <div class="card card-standard">
+      <div class="card-header">Trade Summary</div>
+      <div class="card-content">
+        USD/JPY long position with 2.5:1 risk-reward ratio. Entry at 150.25, stop loss at 148.75.
+      </div>
+      <div class="card-footer">
+        <button class="btn btn-primary btn-sm">View Details</button>
+        <button class="btn btn-secondary btn-sm">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- DATA CARD -->
+  <div class="section">
+    <div class="section-title">Data Card</div>
+    <div class="card card-data">
+      <div class="card-data-item">
+        <div class="card-data-label">Account Balance</div>
+        <div class="card-data-value">$50,000</div>
+      </div>
+      <div class="card-data-item">
+        <div class="card-data-label">Equity</div>
+        <div class="card-data-value positive">$52,450</div>
+      </div>
+      <div class="card-data-item">
+        <div class="card-data-label">P&L Today</div>
+        <div class="card-data-value positive">+$2,450</div>
+      </div>
+      <div class="card-data-item">
+        <div class="card-data-label">Win Rate</div>
+        <div class="card-data-value neutral">65%</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CARD VARIANTS -->
+  <div class="section">
+    <div class="section-title">Card Variants (Colored Borders)</div>
+    <div class="card-grid">
+      <div class="card card-success">
+        <div class="card-header" style="color: var(--color-success);">Success</div>
+        <div class="card-content">Trade closed profitably</div>
+      </div>
+      <div class="card card-danger">
+        <div class="card-header" style="color: var(--color-danger);">Danger</div>
+        <div class="card-content">Stop loss alert triggered</div>
+      </div>
+      <div class="card card-accent">
+        <div class="card-header" style="color: var(--color-accent);">Accent</div>
+        <div class="card-content">Special announcement or warning</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- HOVERABLE CARD -->
+  <div class="section">
+    <div class="section-title">Hoverable Card (Clickable)</div>
+    <div class="card card-hoverable card-elevated">
+      <div class="card-header">EUR/USD Position</div>
+      <div class="card-content">Click to view full position details and trading history</div>
+    </div>
+  </div>
+</body>
+</html>

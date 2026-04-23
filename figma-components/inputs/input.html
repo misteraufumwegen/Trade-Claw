@@ -1,0 +1,114 @@
+<!-- Input Component Examples -->
+<html>
+<head>
+  <link rel="stylesheet" href="../../figma-export/design-tokens/css-variables.css">
+  <link rel="stylesheet" href="input.css">
+  <style>
+    body {
+      padding: var(--spacing-l);
+      display: grid;
+      gap: var(--spacing-2xl);
+      max-width: 600px;
+    }
+    .section {
+      display: flex;
+      flex-direction: column;
+      gap: var(--spacing-l);
+    }
+    .section-title {
+      font-weight: var(--font-weight-bold);
+      font-size: var(--font-size-lg);
+      color: var(--color-primary);
+    }
+    .input-group {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: var(--spacing-l);
+    }
+  </style>
+</head>
+<body>
+  <!-- TEXT INPUTS -->
+  <div class="section">
+    <div class="section-title">Text Input - States</div>
+    
+    <div class="input input-full">
+      <label class="input-label">Default</label>
+      <input type="text" class="input-field" placeholder="Enter text here...">
+    </div>
+
+    <div class="input input-full">
+      <label class="input-label">Focus State</label>
+      <input type="text" class="input-field" placeholder="Click to focus..." autofocus>
+    </div>
+
+    <div class="input input-full">
+      <label class="input-label">Disabled</label>
+      <input type="text" class="input-field" placeholder="Disabled input..." disabled>
+    </div>
+  </div>
+
+  <!-- ERROR & SUCCESS STATES -->
+  <div class="section">
+    <div class="section-title">Input - Error & Success States</div>
+    
+    <div class="input input-error input-full">
+      <label class="input-label">Error State</label>
+      <input type="text" class="input-field" placeholder="Invalid input" value="invalid@">
+      <div class="input-error-message">Please enter a valid email address</div>
+    </div>
+
+    <div class="input input-success input-full">
+      <label class="input-label">Success State</label>
+      <input type="text" class="input-field" placeholder="Valid input" value="user@example.com">
+    </div>
+  </div>
+
+  <!-- NUMBER INPUTS -->
+  <div class="section">
+    <div class="section-title">Number Input</div>
+    
+    <div class="input input-full">
+      <label class="input-label">Risk Amount ($)</label>
+      <input type="number" class="input-field" placeholder="0.00" step="0.01" min="0">
+      <div class="input-helper">Enter your risk amount per trade</div>
+    </div>
+
+    <div class="input input-full">
+      <label class="input-label">Position Size (Units)</label>
+      <input type="number" class="input-field" placeholder="1000" step="1" min="1">
+      <div class="input-helper">Number of units to trade</div>
+    </div>
+  </div>
+
+  <!-- SIZE VARIANTS -->
+  <div class="section">
+    <div class="section-title">Size Variants</div>
+    
+    <div class="input input-sm input-full">
+      <label class="input-label">Small</label>
+      <input type="text" class="input-field" placeholder="Small input...">
+    </div>
+
+    <div class="input input-full">
+      <label class="input-label">Medium (Default)</label>
+      <input type="text" class="input-field" placeholder="Medium input...">
+    </div>
+
+    <div class="input input-lg input-full">
+      <label class="input-label">Large</label>
+      <input type="text" class="input-field" placeholder="Large input...">
+    </div>
+  </div>
+
+  <!-- TEXTAREA -->
+  <div class="section">
+    <div class="section-title">Textarea</div>
+    
+    <div class="input input-full">
+      <label class="input-label">Notes</label>
+      <textarea class="input-field" placeholder="Enter your trading notes here..."></textarea>
+    </div>
+  </div>
+</body>
+</html>

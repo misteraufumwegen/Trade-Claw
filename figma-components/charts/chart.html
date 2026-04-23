@@ -1,0 +1,271 @@
+<!-- Chart Component Examples (SVG Stubs) -->
+<!-- Full implementation requires TradingView Lightweight Charts library or Chart.js -->
+<html>
+<head>
+  <link rel="stylesheet" href="../../figma-export/design-tokens/css-variables.css">
+  <link rel="stylesheet" href="chart.css">
+  <style>
+    body {
+      padding: var(--spacing-l);
+      display: grid;
+      gap: var(--spacing-2xl);
+    }
+    .section {
+      display: flex;
+      flex-direction: column;
+      gap: var(--spacing-m);
+    }
+    .section-title {
+      font-weight: var(--font-weight-bold);
+      font-size: var(--font-size-lg);
+      color: var(--color-primary);
+    }
+    .note {
+      padding: var(--spacing-m);
+      background-color: rgba(0, 217, 255, 0.1);
+      border: 1px solid var(--color-primary);
+      border-radius: var(--radius-md);
+      font-size: var(--font-size-sm);
+      color: var(--color-text-secondary);
+    }
+  </style>
+</head>
+<body>
+  <!-- CANDLESTICK CHART -->
+  <div class="section">
+    <div class="section-title">Candlestick Chart</div>
+    <div class="note">
+      💡 This is a design stub. In production, use TradingView Lightweight Charts library to render real OHLC data.
+    </div>
+    
+    <div class="chart-container">
+      <div class="chart-header">
+        <div class="chart-title">EUR/USD - Daily</div>
+        <div class="chart-controls">
+          <div class="chart-timeframe">
+            <button>1H</button>
+            <button>4H</button>
+            <button class="active">1D</button>
+            <button>1W</button>
+          </div>
+        </div>
+      </div>
+      
+      <div class="chart-canvas">
+        <svg class="chart-svg" viewBox="0 0 800 400" xmlns="http://www.w3.org/2000/svg">
+          <!-- Background -->
+          <rect width="800" height="400" fill="#0D1117"/>
+          
+          <!-- Grid lines (horizontal) -->
+          <line x1="0" y1="100" x2="800" y2="100" stroke="#30363D" stroke-width="0.5" opacity="0.5"/>
+          <line x1="0" y1="200" x2="800" y2="200" stroke="#30363D" stroke-width="0.5" opacity="0.5"/>
+          <line x1="0" y1="300" x2="800" y2="300" stroke="#30363D" stroke-width="0.5" opacity="0.5"/>
+          
+          <!-- Candlesticks (sample) -->
+          <!-- Bullish candle -->
+          <line x1="50" y1="80" x2="50" y2="180" stroke="#10B981" stroke-width="1"/>
+          <rect x="40" y="120" width="20" height="60" fill="#10B981" stroke="#10B981" stroke-width="1"/>
+          
+          <!-- Bearish candle -->
+          <line x1="150" y1="100" x2="150" y2="200" stroke="#EF4444" stroke-width="1"/>
+          <rect x="140" y="140" width="20" height="60" fill="#0D1117" stroke="#EF4444" stroke-width="1"/>
+          
+          <!-- Bullish candle -->
+          <line x1="250" y1="120" x2="250" y2="220" stroke="#10B981" stroke-width="1"/>
+          <rect x="240" y="150" width="20" height="70" fill="#10B981" stroke="#10B981" stroke-width="1"/>
+          
+          <!-- Text labels -->
+          <text x="50" y="390" font-size="12" fill="#8B949E" text-anchor="middle">2026-04-21</text>
+          <text x="150" y="390" font-size="12" fill="#8B949E" text-anchor="middle">2026-04-22</text>
+          <text x="250" y="390" font-size="12" fill="#8B949E" text-anchor="middle">2026-04-23</text>
+          
+          <text x="780" y="30" font-size="12" fill="#8B949E" text-anchor="end">1.1020</text>
+          <text x="780" y="130" font-size="12" fill="#8B949E" text-anchor="end">1.0900</text>
+          <text x="780" y="230" font-size="12" fill="#8B949E" text-anchor="end">1.0780</text>
+          <text x="780" y="330" font-size="12" fill="#8B949E" text-anchor="end">1.0660</text>
+        </svg>
+      </div>
+
+      <div class="chart-legend">
+        <div class="legend-item success">
+          <div class="legend-color"></div>
+          <span>Bullish (Up)</span>
+        </div>
+        <div class="legend-item danger">
+          <div class="legend-color"></div>
+          <span>Bearish (Down)</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- LINE CHART -->
+  <div class="section">
+    <div class="section-title">Line Chart - Price Movement</div>
+    <div class="note">
+      💡 This is a design stub. In production, use Chart.js or Recharts for animated line charts.
+    </div>
+    
+    <div class="chart-container">
+      <div class="chart-header">
+        <div class="chart-title">GBP/USD - Weekly</div>
+        <div class="chart-controls">
+          <div class="chart-timeframe">
+            <button>1H</button>
+            <button>1D</button>
+            <button class="active">1W</button>
+            <button>1M</button>
+          </div>
+        </div>
+      </div>
+      
+      <div class="chart-canvas">
+        <svg class="chart-svg" viewBox="0 0 800 400" xmlns="http://www.w3.org/2000/svg">
+          <!-- Background -->
+          <rect width="800" height="400" fill="#0D1117"/>
+          
+          <!-- Grid -->
+          <line x1="0" y1="100" x2="800" y2="100" stroke="#30363D" stroke-width="0.5" opacity="0.5"/>
+          <line x1="0" y1="200" x2="800" y2="200" stroke="#30363D" stroke-width="0.5" opacity="0.5"/>
+          <line x1="0" y1="300" x2="800" y2="300" stroke="#30363D" stroke-width="0.5" opacity="0.5"/>
+          
+          <!-- Line -->
+          <polyline points="50,280 150,220 250,160 350,180 450,140 550,120 650,160 750,100" 
+                    fill="none" stroke="#00D9FF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          
+          <!-- Area under line -->
+          <polygon points="50,280 150,220 250,160 350,180 450,140 550,120 650,160 750,100 750,400 50,400" 
+                   fill="#00D9FF" opacity="0.1"/>
+          
+          <!-- Data points -->
+          <circle cx="50" cy="280" r="3" fill="#00D9FF"/>
+          <circle cx="150" cy="220" r="3" fill="#00D9FF"/>
+          <circle cx="250" cy="160" r="3" fill="#00D9FF"/>
+          <circle cx="350" cy="180" r="3" fill="#00D9FF"/>
+          <circle cx="450" cy="140" r="3" fill="#00D9FF"/>
+          <circle cx="550" cy="120" r="3" fill="#00D9FF"/>
+          <circle cx="650" cy="160" r="3" fill="#00D9FF"/>
+          <circle cx="750" cy="100" r="3" fill="#00D9FF"/>
+          
+          <!-- Labels -->
+          <text x="50" y="390" font-size="12" fill="#8B949E" text-anchor="middle">Week 1</text>
+          <text x="750" y="390" font-size="12" fill="#8B949E" text-anchor="middle">Week 8</text>
+        </svg>
+      </div>
+
+      <div class="chart-legend">
+        <div class="legend-item primary">
+          <div class="legend-color"></div>
+          <span>Price (GBP/USD)</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- EQUITY CURVE CHART -->
+  <div class="section">
+    <div class="section-title">Equity Curve - Account Performance</div>
+    <div class="note">
+      💡 This is a design stub. In production, feed backtest or live trading equity data into a charting library.
+    </div>
+    
+    <div class="chart-container">
+      <div class="chart-header">
+        <div class="chart-title">Equity Curve (Backtest Results)</div>
+        <div class="chart-controls">
+          <button style="padding: var(--spacing-s) var(--spacing-m); background-color: var(--color-primary); color: var(--color-dark); border: none; border-radius: var(--radius-md); cursor: pointer; font-weight: bold;">Export</button>
+        </div>
+      </div>
+      
+      <div class="chart-canvas">
+        <svg class="chart-svg" viewBox="0 0 800 400" xmlns="http://www.w3.org/2000/svg">
+          <!-- Background -->
+          <rect width="800" height="400" fill="#0D1117"/>
+          
+          <!-- Grid -->
+          <line x1="0" y1="100" x2="800" y2="100" stroke="#30363D" stroke-width="0.5" opacity="0.5"/>
+          <line x1="0" y1="200" x2="800" y2="200" stroke="#30363D" stroke-width="0.5" opacity="0.5"/>
+          <line x1="0" y1="300" x2="800" y2="300" stroke="#30363D" stroke-width="0.5" opacity="0.5"/>
+          
+          <!-- Equity curve (growing trend) -->
+          <polyline points="50,320 100,300 150,290 200,270 250,250 300,240 350,220 400,190 450,160 500,140 550,120 600,110 650,100 700,90 750,70" 
+                    fill="none" stroke="#00D9FF" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+          
+          <!-- Area under curve -->
+          <polygon points="50,320 100,300 150,290 200,270 250,250 300,240 350,220 400,190 450,160 500,140 550,120 600,110 650,100 700,90 750,70 750,400 50,400" 
+                   fill="#00D9FF" opacity="0.15"/>
+          
+          <!-- Max drawdown line (horizontal reference) -->
+          <line x1="50" y1="280" x2="750" y2="280" stroke="#EF4444" stroke-width="1" stroke-dasharray="5,5" opacity="0.5"/>
+          
+          <!-- Labels -->
+          <text x="20" y="75" font-size="11" fill="#8B949E">$52,450</text>
+          <text x="20" y="280" font-size="11" fill="#EF4444">Max DD: -12.5%</text>
+          <text x="20" y="400" font-size="11" fill="#8B949E">$50,000</text>
+          <text x="50" y="390" font-size="12" fill="#8B949E" text-anchor="middle">Day 1</text>
+          <text x="750" y="390" font-size="12" fill="#8B949E" text-anchor="middle">Day 60</text>
+        </svg>
+        
+        <!-- Stats overlay -->
+        <div class="chart-stats">
+          <div class="chart-stat-row">
+            <span class="chart-stat-label">Starting Equity:</span>
+            <span class="chart-stat-value">$50,000</span>
+          </div>
+          <div class="chart-stat-row">
+            <span class="chart-stat-label">Final Equity:</span>
+            <span class="chart-stat-value positive">$52,450</span>
+          </div>
+          <div class="chart-stat-row">
+            <span class="chart-stat-label">Total P&L:</span>
+            <span class="chart-stat-value positive">+$2,450 (+4.9%)</span>
+          </div>
+          <div class="chart-stat-row">
+            <span class="chart-stat-label">Max Drawdown:</span>
+            <span class="chart-stat-value negative">-12.5%</span>
+          </div>
+          <div class="chart-stat-row">
+            <span class="chart-stat-label">Win Rate:</span>
+            <span class="chart-stat-value">65%</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="chart-legend">
+        <div class="legend-item primary">
+          <div class="legend-color"></div>
+          <span>Account Equity</span>
+        </div>
+        <div class="legend-item danger">
+          <div class="legend-color"></div>
+          <span>Max Drawdown</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- IMPLEMENTATION NOTES -->
+  <div class="section" style="margin-top: var(--spacing-2xl); padding: var(--spacing-l); background-color: var(--color-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-lg);">
+    <div class="section-title">Implementation Notes</div>
+    <p style="color: var(--color-text-secondary); margin: var(--spacing-m) 0;">
+      <strong>Recommended Libraries:</strong>
+    </p>
+    <ul style="color: var(--color-text-secondary); line-height: 1.8;">
+      <li><strong>Candlestick Charts:</strong> TradingView Lightweight Charts (best for trading apps)</li>
+      <li><strong>Line Charts:</strong> Chart.js, Recharts, or Victory</li>
+      <li><strong>Equity Curves:</strong> Chart.js, Recharts, or Plotly</li>
+    </ul>
+    <p style="color: var(--color-text-secondary); margin: var(--spacing-m) 0;">
+      <strong>Features to implement:</strong>
+    </p>
+    <ul style="color: var(--color-text-secondary); line-height: 1.8;">
+      <li>Real-time data streaming (WebSocket)</li>
+      <li>Interactive tooltips with value display</li>
+      <li>Crosshair cursor for precise reading</li>
+      <li>Zoom and pan functionality</li>
+      <li>Multiple series overlays (e.g., Moving Averages)</li>
+      <li>Export to PNG/CSV</li>
+    </ul>
+  </div>
+</body>
+</html>

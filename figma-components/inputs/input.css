@@ -1,0 +1,151 @@
+/* Input Components - Text, Number, with Focus States */
+/* Uses design tokens from figma-export/design-tokens */
+
+/* Base Input */
+.input {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+  width: 100%;
+}
+
+.input-label {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-primary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.input-field {
+  background-color: var(--color-secondary);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-primary);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-s) var(--spacing-m);
+  font-family: var(--font-sans);
+  font-size: var(--font-size-base);
+  transition: all 0.2s ease;
+}
+
+.input-field::placeholder {
+  color: var(--color-text-secondary);
+}
+
+/* FOCUS STATE */
+.input-field:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  background-color: var(--color-dark);
+  box-shadow: 0 0 0 3px rgba(0, 217, 255, 0.1);
+}
+
+/* DISABLED STATE */
+.input-field:disabled {
+  background-color: var(--color-dark);
+  color: var(--color-text-secondary);
+  border-color: var(--color-border);
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+/* ERROR STATE */
+.input.input-error .input-field {
+  border-color: var(--color-danger);
+  background-color: rgba(239, 68, 68, 0.05);
+}
+
+.input.input-error .input-field:focus {
+  border-color: var(--color-danger);
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1);
+}
+
+.input-error-message {
+  font-size: var(--font-size-xs);
+  color: var(--color-danger);
+  margin-top: var(--spacing-xs);
+}
+
+/* SUCCESS STATE */
+.input.input-success .input-field {
+  border-color: var(--color-success);
+  background-color: rgba(16, 185, 129, 0.05);
+}
+
+.input.input-success .input-field:focus {
+  border-color: var(--color-success);
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+}
+
+/* HELPER TEXT */
+.input-helper {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+  margin-top: var(--spacing-xs);
+}
+
+/* TEXT INPUT */
+input[type="text"],
+input[type="email"],
+input[type="password"],
+textarea {
+  font-family: var(--font-sans);
+  resize: vertical;
+}
+
+/* NUMBER INPUT */
+input[type="number"] {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-base);
+}
+
+/* Remove spinner for number inputs */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+input[type="number"][type="number"] {
+  -moz-appearance: textfield;
+}
+
+/* SIZE VARIANTS */
+.input-sm .input-field {
+  padding: var(--spacing-xs) var(--spacing-s);
+  font-size: var(--font-size-sm);
+}
+
+.input-lg .input-field {
+  padding: var(--spacing-m) var(--spacing-l);
+  font-size: var(--font-size-lg);
+}
+
+/* FULL WIDTH */
+.input-full {
+  width: 100%;
+}
+
+/* INPUT WITH ICON */
+.input-with-icon {
+  position: relative;
+}
+
+.input-with-icon .input-field {
+  padding-right: var(--spacing-2xl);
+}
+
+.input-icon {
+  position: absolute;
+  right: var(--spacing-m);
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--color-text-secondary);
+  pointer-events: none;
+}
+
+/* TEXTAREA */
+textarea.input-field {
+  min-height: 100px;
+  font-family: var(--font-mono);
+}

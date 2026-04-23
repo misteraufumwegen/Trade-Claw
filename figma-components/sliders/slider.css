@@ -1,0 +1,192 @@
+/* Slider Component - Track, Fill, Thumb, Labels */
+/* Uses design tokens from figma-export/design-tokens */
+
+/* Base Slider Container */
+.slider-container {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-m);
+  width: 100%;
+}
+
+.slider-label {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-primary);
+}
+
+.slider-value {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-lg);
+  color: var(--color-primary);
+  font-weight: var(--font-weight-bold);
+}
+
+/* HTML5 Input Range Slider */
+input[type="range"] {
+  width: 100%;
+  height: 4px;
+  border-radius: 2px;
+  background: linear-gradient(
+    to right,
+    var(--color-primary) 0%,
+    var(--color-primary) var(--value),
+    var(--color-border) var(--value),
+    var(--color-border) 100%
+  );
+  outline: none;
+  -webkit-appearance: none;
+  appearance: none;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+/* Thumb/Handle */
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background-color: var(--color-primary);
+  border: 2px solid var(--color-dark);
+  cursor: pointer;
+  box-shadow: var(--shadow-md);
+  transition: all 0.2s ease;
+}
+
+input[type="range"]::-webkit-slider-thumb:hover {
+  box-shadow: var(--shadow-lg);
+  transform: scale(1.1);
+}
+
+input[type="range"]::-webkit-slider-thumb:active {
+  box-shadow: 0 0 0 4px rgba(0, 217, 255, 0.2);
+}
+
+/* Firefox */
+input[type="range"]::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background-color: var(--color-primary);
+  border: 2px solid var(--color-dark);
+  cursor: pointer;
+  box-shadow: var(--shadow-md);
+  transition: all 0.2s ease;
+}
+
+input[type="range"]::-moz-range-thumb:hover {
+  box-shadow: var(--shadow-lg);
+  transform: scale(1.1);
+}
+
+/* Track (Firefox) */
+input[type="range"]::-moz-range-track {
+  background: transparent;
+  border: none;
+}
+
+input[type="range"]::-moz-range-progress {
+  background-color: var(--color-primary);
+  height: 4px;
+  border-radius: 2px;
+}
+
+/* Disabled state */
+input[type="range"]:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+input[type="range"]:disabled::-webkit-slider-thumb {
+  background-color: var(--color-text-secondary);
+  cursor: not-allowed;
+}
+
+input[type="range"]:disabled::-moz-range-thumb {
+  background-color: var(--color-text-secondary);
+  cursor: not-allowed;
+}
+
+/* Slider with Tick Marks */
+.slider-with-ticks {
+  position: relative;
+  margin-top: var(--spacing-l);
+}
+
+.slider-ticks {
+  display: flex;
+  justify-content: space-between;
+  margin-top: var(--spacing-s);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+}
+
+.slider-tick {
+  text-align: center;
+  flex: 1;
+}
+
+/* Range Slider (min/max) */
+.slider-range {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-m);
+}
+
+.slider-range-inputs {
+  display: flex;
+  gap: var(--spacing-m);
+  align-items: center;
+}
+
+.slider-range-input {
+  flex: 1;
+}
+
+.slider-range-input input {
+  width: 100%;
+  background-color: var(--color-secondary);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-primary);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-s) var(--spacing-m);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-base);
+  text-align: center;
+}
+
+.slider-range-input input:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(0, 217, 255, 0.1);
+}
+
+/* Colors for different states */
+.slider-success input[type="range"]::-webkit-slider-thumb {
+  background-color: var(--color-success);
+}
+
+.slider-success input[type="range"]::-moz-range-thumb {
+  background-color: var(--color-success);
+}
+
+.slider-danger input[type="range"]::-webkit-slider-thumb {
+  background-color: var(--color-danger);
+}
+
+.slider-danger input[type="range"]::-moz-range-thumb {
+  background-color: var(--color-danger);
+}
+
+.slider-accent input[type="range"]::-webkit-slider-thumb {
+  background-color: var(--color-accent);
+}
+
+.slider-accent input[type="range"]::-moz-range-thumb {
+  background-color: var(--color-accent);
+}

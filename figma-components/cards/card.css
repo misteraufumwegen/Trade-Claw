@@ -1,0 +1,136 @@
+/* Card Components - Standard, Data-Card, with Hover Effects */
+/* Uses design tokens from figma-export/design-tokens */
+
+/* Base Card */
+.card {
+  background-color: var(--color-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-m);
+  transition: all 0.2s ease;
+}
+
+.card:hover {
+  border-color: var(--color-primary);
+  box-shadow: var(--shadow-md);
+}
+
+/* STANDARD CARD */
+.card-standard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-m);
+}
+
+.card-standard .card-header {
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-primary);
+}
+
+.card-standard .card-content {
+  font-size: var(--font-size-base);
+  color: var(--color-text-secondary);
+  line-height: var(--line-height-normal);
+}
+
+.card-standard .card-footer {
+  display: flex;
+  gap: var(--spacing-s);
+  margin-top: var(--spacing-s);
+  border-top: 1px solid var(--color-border);
+  padding-top: var(--spacing-m);
+}
+
+/* DATA CARD */
+.card-data {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--spacing-m);
+  padding: var(--spacing-l);
+}
+
+.card-data-item {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+}
+
+.card-data-label {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.card-data-value {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-primary);
+}
+
+.card-data-value.positive {
+  color: var(--color-success);
+}
+
+.card-data-value.negative {
+  color: var(--color-danger);
+}
+
+.card-data-value.neutral {
+  color: var(--color-accent);
+}
+
+/* HOVER EFFECT VARIATIONS */
+.card-hoverable {
+  cursor: pointer;
+}
+
+.card-hoverable:hover {
+  background-color: #1F262D;
+  border-color: var(--color-primary);
+  box-shadow: var(--shadow-lg);
+  transform: translateY(-4px);
+}
+
+.card-elevated {
+  box-shadow: var(--shadow-md);
+}
+
+.card-elevated:hover {
+  box-shadow: var(--shadow-lg);
+}
+
+/* CARD VARIANTS - SUCCESS, DANGER, ACCENT */
+.card.card-success {
+  border-color: var(--color-success);
+}
+
+.card.card-success:hover {
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+}
+
+.card.card-danger {
+  border-color: var(--color-danger);
+}
+
+.card.card-danger:hover {
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1);
+}
+
+.card.card-accent {
+  border-color: var(--color-accent);
+}
+
+.card.card-accent:hover {
+  box-shadow: 0 0 0 3px rgba(255, 183, 0, 0.1);
+}
+
+/* RESPONSIVE */
+@media (max-width: 768px) {
+  .card-data {
+    grid-template-columns: 1fr;
+  }
+}
