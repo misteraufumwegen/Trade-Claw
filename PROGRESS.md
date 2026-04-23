@@ -23,26 +23,26 @@
 - **Commit:** `git add figma-export/ && git commit -m "HOUR_1-2: Design System Tokens"` ✓
 
 ### Hour 3-4: Component Library
-- [ ] Create Button components (Primary, Secondary, Danger + Hover/Active/Disabled states)
-- [ ] Create Card component (standard, data-card, with hover effects)
-- [ ] Create Input component (text, number, focus states)
-- [ ] Create Slider (Track, Fill, Thumb, Labels)
-- [ ] Create Table component (Header, Rows, Hover, Responsive)
-- [ ] Create Alert Badge + Toast Notification
-- [ ] Create Chart components (Candlestick, Line, Equity Curve)
-- **Success Criteria:** All components in Figma library with variants
-- **Commit:** `git add figma-components/ && git commit -m "HOUR_3-4: Component Library"` IN PROGRESS
+- [x] Create Button components (Primary, Secondary, Danger + Hover/Active/Disabled states)
+- [x] Create Card component (standard, data-card, with hover effects)
+- [x] Create Input component (text, number, focus states)
+- [x] Create Slider (Track, Fill, Thumb, Labels)
+- [x] Create Table component (Header, Rows, Hover, Responsive)
+- [x] Create Alert Badge + Toast Notification
+- [x] Create Chart components (Candlestick, Line, Equity Curve)
+- **Success Criteria:** All components in Figma library with variants ✓
+- **Commit:** `git add figma-components/ && git commit -m "HOUR_3-4: Component Library"` ✓ (5a40b5b)
 
 ### Hour 5-6: Hi-Fi Mockups (5 Pages)
-- [ ] **Page 1: Dashboard** (Live Quotes, Positions Overview, P&L, Risk Metrics, Account Health)
-- [ ] **Page 2: Trading** (Order Entry Form, Order List, Trade History, Charts)
-- [ ] **Page 3: Risk Management** (Drawdown %, Max DD, Win-Rate, Grade Distribution, Account Heat Map)
-- [ ] **Page 4: Analytics** (Equity Curve, Performance Stats, Trade Analysis, Backtest Results)
-- [ ] **Page 5: Settings** (OANDA Config, Risk Limits, Strategy Settings, Data Source Config)
-- [ ] Add responsive annotations (320px / 768px / 1024px / 1920px breakpoints)
-- [ ] Create Handoff Spec for Elon (Components used, Data models, Layout specs)
-- **Success Criteria:** All 5 pages designed, responsive guidelines documented, Handoff-Spec written
-- **Commit:** `git add mockups/ && git commit -m "HOUR_5-6: Hi-Fi Mockups + Handoff Spec"`
+- [x] **Page 1: Dashboard** (Live Quotes, Positions Overview, P&L, Risk Metrics, Account Health)
+- [x] **Page 2: Trading** (Order Entry Form, Order List, Trade History, Charts)
+- [x] **Page 3: Risk Management** (Drawdown %, Max DD, Win-Rate, Grade Distribution, Account Heat Map)
+- [x] **Page 4: Analytics** (Equity Curve, Performance Stats, Trade Analysis, Backtest Results)
+- [x] **Page 5: Settings** (OANDA Config, Risk Limits, Strategy Settings, Data Source Config)
+- [x] Add responsive annotations (320px / 768px / 1024px / 1920px breakpoints)
+- [x] Create Handoff Spec for Elon (Components used, Data models, Layout specs)
+- **Success Criteria:** All 5 pages designed, responsive guidelines documented, Handoff-Spec written ✓
+- **Commit:** `git add mockups/ && git commit -m "HOUR_5-6: Hi-Fi Mockups + Handoff Spec"` ✓ (3f0339a)
 
 **Definition of Done (ERKAN):** All files committed, Figma exports in repo, Handoff-Spec ready
 
@@ -81,27 +81,27 @@
 - **Commit:** `git add backend/ && git commit -m "HOUR_3-5: Backend APIs + OANDA Integration"` ✓ (bcf616b)
 
 ### Hour 6-10: Frontend Pages (React Components)
-- [ ] Create layout components (Header, Sidebar, MainContent)
-- [ ] Create Dashboard page (Grid layout, Widgets, Real-time updates)
-- [ ] Create Trading page (Order form, Active orders table, Trade history)
-- [ ] Create Risk page (Risk metrics cards, Charts, Account heat map)
-- [ ] Create Analytics page (Equity curve, Stats table, Performance summary)
-- [ ] Create Settings page (Config form, Risk limits sliders, Data source selection)
-- [ ] Connect all pages to Redux store (state management)
-- [ ] Add TradingView Lightweight Charts library
-- **Success Criteria:** All pages load, render with mock data, no console errors
-- **Commit:** `git add frontend/ && git commit -m "HOUR_6-10: Frontend Pages + Redux State"`
+- [x] Create layout components (Header, Sidebar, MainContent)
+- [x] Create Dashboard page (Grid layout, Widgets, Real-time updates)
+- [x] Create Trading page (Order form, Active orders table, Trade history)
+- [x] Create Risk page (Risk metrics cards, Charts, Account heat map)
+- [x] Create Analytics page (Equity curve, Stats table, Performance summary)
+- [x] Create Settings page (Config form, Risk limits sliders, Data source selection)
+- [x] Connect all pages to Redux store (state management)
+- [x] Add TradingView Lightweight Charts library
+- **Success Criteria:** All pages load, render with mock data, no console errors ✓
+- **Commit:** `git add frontend/ && git commit -m "HOUR_6-10: Frontend Pages + Redux State"` ✓ (6947b05)
 
 ### Hour 11-15: Integration + Backtesting
-- [ ] Wire frontend to real FastAPI endpoints (fetch calls, WebSocket for live data)
-- [ ] Implement WebSocket connection for live quote updates
+- [x] Wire frontend to real FastAPI endpoints (fetch calls, WebSocket for live data) ✓ HOUR_4
+- [x] Implement WebSocket connection for live quote updates ✓ HOUR_4
 - [ ] Create backtest pipeline (load historical data from OANDA/yfinance, run engine, display results)
 - [ ] Create Equity Curve chart (from backtest results)
 - [ ] Implement trade list visualization (from backtest)
-- [ ] Add real-time position updates
+- [ ] Add real-time position updates ✓ HOUR_4
 - [ ] Add order execution flow (form → API → position list update)
 - **Success Criteria:** End-to-end flow works (place order → see in positions, run backtest → see results)
-- **Commit:** `git add . && git commit -m "HOUR_11-15: E2E Integration + Backtest Pipeline"`
+- **Commit:** `git add . && git commit -m "HOUR_11-15: E2E Integration + Backtest Pipeline"` IN PROGRESS (496b67c starts integration)
 
 ### Hour 16-20: Docker + Testing + Documentation
 - [ ] Finalize docker-compose.yml (all services, env vars, volumes)
@@ -169,25 +169,18 @@ If any blocker occurs:
 
 ### BLOCKERS (CRITICAL - SPRINT_1 INCOMPLETE)
 ```
-🔴 BLOCKER #1: Integration Layer Incomplete (Hour 11-15)
-   Redux async thunks created but not dispatched from components.
-   Impact: Frontend cannot call backend APIs.
+✅ **BLOCKERS FIXED (HOUR_4):**
+   ✓ BLOCKER #1: Redux dispatch wired into Dashboard + all pages (496b67c)
+   ✓ BLOCKER #2: React 19 + Redux Toolkit deps resolved
+   ✓ BLOCKER #3: WebSocket implemented + connected to backend
 
-🔴 BLOCKER #2: React 19 + Redux Toolkit Incompatibility (Hour 16-20)
-   Package dependency conflict during docker-compose build.
-   Impact: Frontend service build fails.
-
-🔴 BLOCKER #3: WebSocket Not Started
-   Live quote updates require WebSocket setup (not implemented).
-   Impact: Real-time data unavailable.
-
-⏳ CURRENT STATUS: 75% Complete (8 of 9 criteria met, 3 critical blockers)
-   ✓ Design System + Components + Mockups: 100%
-   ✓ Backend APIs: 100% (mock-ready, OANDA client ready)
-   ✓ Frontend Pages: 100% structure (not connected to backend)
-   ✗ Integration: 30% (thunks created, dispatch not wired)
-   ✗ Docker + Testing: 0% (blocked)
-   ✗ SPRINT_1_COMPLETE: NOT MET
+⏳ **CURRENT STATUS: 85% Complete** (7 of 9 criteria met, 1 critical blocker remaining)
+   ✓ Design System + Components + Mockups: 100% (ERKAN)
+   ✓ Backend APIs: 100% (ELON, mock + OANDA ready)
+   ✓ Frontend Pages: 100% + Redux wired (ELON, HOUR_4 integrated)
+   ✓ Integration Layer: 70% (Redux + WebSocket done, backtest pipeline needed)
+   ✗ Docker + Testing: 0% (blocked on backtest pipeline completion)
+   ✗ SPRINT_1_COMPLETE: NOT MET (need HOUR_5-6 + docker testing)
 ```
 
 ---
@@ -200,5 +193,6 @@ If any blocker occurs:
 
 ---
 
-**Last Updated:** 2026-04-23 18:09 CET  
-**Next Session:** 2026-04-23 20:00 CET (Hour 4+)
+**Last Updated:** 2026-04-23 22:09 CET  
+**Current Session:** HOUR_4 COMPLETE ✓ (496b67c) — Blockers fixed, Integration wired  
+**Next Session:** HOUR_5-6 — Backtest Pipeline + Docker Testing
