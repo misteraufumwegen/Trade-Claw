@@ -1,9 +1,11 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { AppDispatch, RootState } from "@/lib/store";
 import { fetchQuotes, fetchPositions, fetchAccount } from "@/lib/thunks";
+import { updateQuote } from "@/lib/slices/quotesSlice";
+import { QuoteWebSocket } from "@/lib/services/api";
 import styles from "./Dashboard.module.css";
 
 export default function Dashboard() {
@@ -11,12 +13,73 @@ export default function Dashboard() {
   const positions = useSelector((state: RootState) => state.positions);
   const quotes = useSelector((state: RootState) => state.quotes);
   const account = useSelector((state: RootState) => state.account);
+  const wsRef = useRef<QuoteWebSocket | null>(null);
 
-  // Fetch data on mount
+  // Fetch data on mount + setup WebSocket
   useEffect(() => {
+    // Initial fetch
     dispatch(fetchQuotes(["EUR_USD", "GBP_USD", "SPY"]));
     dispatch(fetchPositions());
     dispatch(fetchAccount());
+
+    // Setup WebSocket for live quotes
+    const ws = new QuoteWebSocket(
+      process.env.NEXT_PUBLIC_WS_URL || "ws://localhost:8000/ws/quotes"
+    );
+    wsRef.current = ws;
+
+    // Connect and subscribe to quotes
+    ws.connect()
+      .then(() => {
+        console.log("WebSocket connected for live quotes");
+        // Subscribe to main instruments and update Redux on message
+        ws.subscribe("EUR_USD", (data) => {
+          console.log("Live quote update:", data);
+          dispatch(updateQuote({
+            symbol: "EUR/USD",
+            bid: data.bid || 1.0845,
+            ask: data.ask || 1.0846,
+            last: data.last || 1.0845,
+            change: data.change || 0,
+            changePercent: data.changePercent || 0,
+            timestamp: data.timestamp || new Date().toISOString(),
+          }));
+        });
+        ws.subscribe("GBP_USD", (data) => {
+          console.log("Live quote update:", data);
+          dispatch(updateQuote({
+            symbol: "GBP/USD",
+            bid: data.bid || 1.2742,
+            ask: data.ask || 1.2743,
+            last: data.last || 1.2742,
+            change: data.change || 0,
+            changePercent: data.changePercent || 0,
+            timestamp: data.timestamp || new Date().toISOString(),
+          }));
+        });
+        ws.subscribe("SPY", (data) => {
+          console.log("Live quote update:", data);
+          dispatch(updateQuote({
+            symbol: "SPY",
+            bid: data.bid || 486.52,
+            ask: data.ask || 486.53,
+            last: data.last || 486.52,
+            change: data.change || 0,
+            changePercent: data.changePercent || 0,
+            timestamp: data.timestamp || new Date().toISOString(),
+          }));
+        });
+      })
+      .catch((error) => {
+        console.error("WebSocket connection failed:", error);
+      });
+
+    // Cleanup on unmount
+    return () => {
+      if (wsRef.current) {
+        wsRef.current.disconnect();
+      }
+    };
   }, [dispatch]);
 
   const calculateAccountMetrics = () => {

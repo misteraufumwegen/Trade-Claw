@@ -5,7 +5,7 @@ import logging
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
-from app.routers import quotes, positions, orders, account, backtest
+from app.routers import quotes, positions, orders, account, backtest, websocket
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
