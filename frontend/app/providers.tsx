@@ -1,0 +1,1 @@
+\"use client\";\n\nimport { ReactNode } from \"react\";\nimport { Provider } from \"react-redux\";\nimport { store } from \"@/lib/store\";\n\nexport function Providers({ children }: { children: ReactNode }) {\n  return <Provider store={store}>{children}</Provider>;\n}

@@ -1,0 +1,1 @@
+.app {\n  display: flex;\n  flex-direction: column;\n  height: 100vh;\n  background: var(--color-dark);\n  color: var(--color-text-primary);\n  font-family: var(--font-sans);\n}\n\n.container {\n  display: flex;\n  flex: 1;\n  overflow: hidden;\n}\n
