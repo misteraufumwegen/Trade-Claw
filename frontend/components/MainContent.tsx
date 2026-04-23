@@ -1,1 +1,38 @@
-"use client";\n\nimport { useSelector } from \"react-redux\";\nimport { RootState } from \"@/lib/store\";\nimport Dashboard from \"@/components/pages/Dashboard\";\nimport Trading from \"@/components/pages/Trading\";\nimport Risk from \"@/components/pages/Risk\";\nimport Analytics from \"@/components/pages/Analytics\";\nimport Settings from \"@/components/pages/Settings\";\nimport styles from \"./MainContent.module.css\";\n\nexport default function MainContent() {\n  const currentPage = useSelector((state: RootState) => state.app.currentPage);\n  const sidebarOpen = useSelector((state: RootState) => state.app.sidebarOpen);\n\n  const renderPage = () => {\n    switch (currentPage) {\n      case \"dashboard\":\n        return <Dashboard />;\n      case \"trading\":\n        return <Trading />;\n      case \"risk\":\n        return <Risk />;\n      case \"analytics\":\n        return <Analytics />;\n      case \"settings\":\n        return <Settings />;\n      default:\n        return <Dashboard />;\n    }\n  };\n\n  return (\n    <main className={`${styles.mainContent} ${sidebarOpen ? styles.withSidebar : styles.collapsedSidebar}`}>\n      {renderPage()}\n    </main>\n  );\n}
+"use client";
+
+import { useSelector } from "react-redux";
+import { RootState } from "@/lib/store";
+import Dashboard from "@/components/pages/Dashboard";
+import Trading from "@/components/pages/Trading";
+import Risk from "@/components/pages/Risk";
+import Analytics from "@/components/pages/Analytics";
+import Settings from "@/components/pages/Settings";
+import styles from "./MainContent.module.css";
+
+export default function MainContent() {
+  const currentPage = useSelector((state: RootState) => state.app.currentPage);
+  const sidebarOpen = useSelector((state: RootState) => state.app.sidebarOpen);
+
+  const renderPage = () => {
+    switch (currentPage) {
+      case "dashboard":
+        return <Dashboard />;
+      case "trading":
+        return <Trading />;
+      case "risk":
+        return <Risk />;
+      case "analytics":
+        return <Analytics />;
+      case "settings":
+        return <Settings />;
+      default:
+        return <Dashboard />;
+    }
+  };
+
+  return (
+    <main className={`${styles.mainContent} ${sidebarOpen ? styles.withSidebar : styles.collapsedSidebar}`}>
+      {renderPage()}
+    </main>
+  );
+}

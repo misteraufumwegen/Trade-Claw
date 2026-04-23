@@ -1,1 +1,272 @@
-.analytics {\n  padding: var(--spacing-xl);\n  max-width: 1920px;\n  margin: 0 auto;\n}\n\n.title {\n  font-family: var(--font-sans);\n  font-size: var(--font-size-3xl);\n  font-weight: var(--font-weight-bold);\n  color: var(--color-text-primary);\n  margin-bottom: var(--spacing-2xl);\n}\n\n.empty {\n  background: var(--color-secondary);\n  border: 1px solid var(--color-border);\n  border-radius: var(--radius-md);\n  padding: var(--spacing-2xl);\n  text-align: center;\n  color: var(--color-text-secondary);\n  font-size: var(--font-size-lg);\n}\n\n.statsGrid {\n  display: grid;\n  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));\n  gap: var(--spacing-l);\n  margin-bottom: var(--spacing-2xl);\n}\n\n.statCard {\n  background: var(--color-secondary);\n  border: 1px solid var(--color-border);\n  border-radius: var(--radius-md);\n  padding: var(--spacing-l);\n  box-shadow: var(--shadow-sm);\n  transition: all 0.2s;\n}\n\n.statCard:hover {\n  border-color: var(--color-primary);\n  box-shadow: var(--shadow-md);\n}\n\n.statLabel {\n  font-family: var(--font-sans);\n  font-size: var(--font-size-sm);\n  font-weight: var(--font-weight-bold);\n  color: var(--color-text-secondary);\n  text-transform: uppercase;\n  letter-spacing: 0.5px;\n  margin-bottom: var(--spacing-m);\n}\n\n.statValue {\n  font-family: var(--font-mono);\n  font-size: var(--font-size-3xl);\n  font-weight: var(--font-weight-bold);\n  color: var(--color-text-primary);\n  margin-bottom: var(--spacing-m);\n}\n\n.statValue.positive {\n  color: var(--color-success);\n}\n\n.statValue.negative {\n  color: var(--color-danger);\n}\n\n.statMeta {\n  font-family: var(--font-sans);\n  font-size: var(--font-size-xs);\n  color: var(--color-text-secondary);\n}\n\n.section {\n  margin-bottom: var(--spacing-2xl);\n}\n\n.sectionTitle {\n  font-family: var(--font-sans);\n  font-size: var(--font-size-2xl);\n  font-weight: var(--font-weight-bold);\n  color: var(--color-text-primary);\n  margin-bottom: var(--spacing-l);\n}\n\n.equityCurveChart {\n  background: var(--color-secondary);\n  border: 1px solid var(--color-border);\n  border-radius: var(--radius-md);\n  padding: var(--spacing-l);\n}\n\n.chartContainer {\n  display: flex;\n  align-items: flex-end;\n  justify-content: space-around;\n  height: 300px;\n  gap: 2px;\n  margin-bottom: var(--spacing-l);\n}\n\n.chartBar {\n  flex: 1;\n  background: var(--color-dark);\n  border-radius: var(--radius-sm) var(--radius-sm) 0 0;\n  min-height: 4px;\n  display: flex;\n  flex-direction: column;\n  justify-content: flex-end;\n  transition: all 0.2s;\n}\n\n.chartBar:hover {\n  opacity: 0.8;\n}\n\n.chartBarFill {\n  border-radius: var(--radius-sm) var(--radius-sm) 0 0;\n  transition: height 0.2s;\n}\n\n.chartLabel {\n  display: flex;\n  justify-content: space-between;\n  padding: 0 var(--spacing-m);\n  font-family: var(--font-mono);\n  font-size: var(--font-size-sm);\n  color: var(--color-text-secondary);\n}\n\n.statsTable {\n  background: var(--color-secondary);\n  border: 1px solid var(--color-border);\n  border-radius: var(--radius-md);\n  overflow: hidden;\n}\n\n.tableRow {\n  display: flex;\n  justify-content: space-between;\n  align-items: center;\n  padding: var(--spacing-m) var(--spacing-l);\n  border-bottom: 1px solid var(--color-border);\n  transition: background-color 0.2s;\n}\n\n.tableRow:last-child {\n  border-bottom: none;\n}\n\n.tableRow:hover {\n  background-color: rgba(0, 217, 255, 0.05);\n}\n\n.label {\n  font-family: var(--font-sans);\n  font-size: var(--font-size-base);\n  color: var(--color-text-primary);\n}\n\n.value {\n  font-family: var(--font-mono);\n  font-size: var(--font-size-lg);\n  font-weight: var(--font-weight-bold);\n  color: var(--color-text-primary);\n}\n\n.value.positive {\n  color: var(--color-success);\n}\n\n.value.negative {\n  color: var(--color-danger);\n}\n\n.tradesTable {\n  background: var(--color-secondary);\n  border: 1px solid var(--color-border);\n  border-radius: var(--radius-md);\n  overflow: hidden;\n}\n\n.tableHeader {\n  background: var(--color-dark);\n  border-bottom: 1px solid var(--color-border);\n  display: grid;\n  grid-template-columns: 150px 150px 80px 100px 100px 100px 100px;\n  gap: var(--spacing-m);\n  padding: var(--spacing-m) var(--spacing-l);\n  font-family: var(--font-sans);\n  font-size: var(--font-size-xs);\n  font-weight: var(--font-weight-bold);\n  color: var(--color-text-secondary);\n  text-transform: uppercase;\n  letter-spacing: 0.5px;\n}\n\n.tradesTable .tableRow {\n  display: grid;\n  grid-template-columns: 150px 150px 80px 100px 100px 100px 100px;\n  gap: var(--spacing-m);\n  padding: var(--spacing-m) var(--spacing-l);\n  border-bottom: 1px solid var(--color-border);\n}\n\n.time {\n  font-family: var(--font-mono);\n  font-size: var(--font-size-sm);\n  color: var(--color-text-secondary);\n}\n\n.badge {\n  display: inline-block;\n  padding: var(--spacing-xs) var(--spacing-s);\n  border-radius: var(--radius-sm);\n  font-family: var(--font-sans);\n  font-size: var(--font-size-xs);\n  font-weight: var(--font-weight-bold);\n  text-transform: uppercase;\n}\n\n.badge.buy {\n  background-color: rgba(16, 185, 129, 0.2);\n  color: var(--color-success);\n}\n\n.badge.sell {\n  background-color: rgba(239, 68, 68, 0.2);\n  color: var(--color-danger);\n}\n\n.price {\n  font-family: var(--font-mono);\n  text-align: right;\n}\n\n.price.positive {\n  color: var(--color-success);\n}\n\n.price.negative {\n  color: var(--color-danger);\n}\n\n@media (max-width: 1024px) {\n  .tableHeader,\n  .tradesTable .tableRow {\n    grid-template-columns: repeat(4, 1fr);\n    gap: var(--spacing-s);\n  }\n}\n\n@media (max-width: 768px) {\n  .analytics {\n    padding: var(--spacing-l);\n  }\n\n  .chartContainer {\n    height: 200px;\n  }\n\n  .tableHeader,\n  .tradesTable .tableRow {\n    display: flex;\n    flex-direction: column;\n    gap: var(--spacing-m);\n  }\n}
+.analytics {
+  padding: var(--spacing-xl);
+  max-width: 1920px;
+  margin: 0 auto;
+}
+
+.title {
+  font-family: var(--font-sans);
+  font-size: var(--font-size-3xl);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-primary);
+  margin-bottom: var(--spacing-2xl);
+}
+
+.empty {
+  background: var(--color-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-2xl);
+  text-align: center;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-lg);
+}
+
+.statsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: var(--spacing-l);
+  margin-bottom: var(--spacing-2xl);
+}
+
+.statCard {
+  background: var(--color-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-l);
+  box-shadow: var(--shadow-sm);
+  transition: all 0.2s;
+}
+
+.statCard:hover {
+  border-color: var(--color-primary);
+  box-shadow: var(--shadow-md);
+}
+
+.statLabel {
+  font-family: var(--font-sans);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: var(--spacing-m);
+}
+
+.statValue {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-3xl);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-primary);
+  margin-bottom: var(--spacing-m);
+}
+
+.statValue.positive {
+  color: var(--color-success);
+}
+
+.statValue.negative {
+  color: var(--color-danger);
+}
+
+.statMeta {
+  font-family: var(--font-sans);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+}
+
+.section {
+  margin-bottom: var(--spacing-2xl);
+}
+
+.sectionTitle {
+  font-family: var(--font-sans);
+  font-size: var(--font-size-2xl);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-primary);
+  margin-bottom: var(--spacing-l);
+}
+
+.equityCurveChart {
+  background: var(--color-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-l);
+}
+
+.chartContainer {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-around;
+  height: 300px;
+  gap: 2px;
+  margin-bottom: var(--spacing-l);
+}
+
+.chartBar {
+  flex: 1;
+  background: var(--color-dark);
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+  min-height: 4px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  transition: all 0.2s;
+}
+
+.chartBar:hover {
+  opacity: 0.8;
+}
+
+.chartBarFill {
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+  transition: height 0.2s;
+}
+
+.chartLabel {
+  display: flex;
+  justify-content: space-between;
+  padding: 0 var(--spacing-m);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+.statsTable {
+  background: var(--color-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.tableRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--spacing-m) var(--spacing-l);
+  border-bottom: 1px solid var(--color-border);
+  transition: background-color 0.2s;
+}
+
+.tableRow:last-child {
+  border-bottom: none;
+}
+
+.tableRow:hover {
+  background-color: rgba(0, 217, 255, 0.05);
+}
+
+.label {
+  font-family: var(--font-sans);
+  font-size: var(--font-size-base);
+  color: var(--color-text-primary);
+}
+
+.value {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-primary);
+}
+
+.value.positive {
+  color: var(--color-success);
+}
+
+.value.negative {
+  color: var(--color-danger);
+}
+
+.tradesTable {
+  background: var(--color-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.tableHeader {
+  background: var(--color-dark);
+  border-bottom: 1px solid var(--color-border);
+  display: grid;
+  grid-template-columns: 150px 150px 80px 100px 100px 100px 100px;
+  gap: var(--spacing-m);
+  padding: var(--spacing-m) var(--spacing-l);
+  font-family: var(--font-sans);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.tradesTable .tableRow {
+  display: grid;
+  grid-template-columns: 150px 150px 80px 100px 100px 100px 100px;
+  gap: var(--spacing-m);
+  padding: var(--spacing-m) var(--spacing-l);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.time {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+.badge {
+  display: inline-block;
+  padding: var(--spacing-xs) var(--spacing-s);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-sans);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-bold);
+  text-transform: uppercase;
+}
+
+.badge.buy {
+  background-color: rgba(16, 185, 129, 0.2);
+  color: var(--color-success);
+}
+
+.badge.sell {
+  background-color: rgba(239, 68, 68, 0.2);
+  color: var(--color-danger);
+}
+
+.price {
+  font-family: var(--font-mono);
+  text-align: right;
+}
+
+.price.positive {
+  color: var(--color-success);
+}
+
+.price.negative {
+  color: var(--color-danger);
+}
+
+@media (max-width: 1024px) {
+  .tableHeader,
+  .tradesTable .tableRow {
+    grid-template-columns: repeat(4, 1fr);
+    gap: var(--spacing-s);
+  }
+}
+
+@media (max-width: 768px) {
+  .analytics {
+    padding: var(--spacing-l);
+  }
+
+  .chartContainer {
+    height: 200px;
+  }
+
+  .tableHeader,
+  .tradesTable .tableRow {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-m);
+  }
+}

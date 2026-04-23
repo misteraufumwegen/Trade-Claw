@@ -1,1 +1,204 @@
-"use client\";\n\nimport { useSelector, useDispatch } from \"react-redux\";\nimport { RootState } from \"@/lib/store\";\nimport { addOrder } from \"@/lib/slices/ordersSlice\";\nimport { useState } from \"react\";\nimport styles from \"./Trading.module.css\";\n\nexport default function Trading() {\n  const dispatch = useDispatch();\n  const orders = useSelector((state: RootState) => state.orders);\n  const positions = useSelector((state: RootState) => state.positions);\n  const quotes = useSelector((state: RootState) => state.quotes);\n\n  const [formData, setFormData] = useState({\n    symbol: \"EUR/USD\",\n    side: \"BUY\" as const,\n    type: \"MARKET\" as const,\n    units: 100000,\n    price: 1.0845,\n  });\n\n  const handlePlaceOrder = (e: React.FormEvent) => {\n    e.preventDefault();\n    const newOrder = {\n      id: `ord-${Date.now()}`,\n      symbol: formData.symbol,\n      side: formData.side,\n      type: formData.type,\n      units: formData.units,\n      price: formData.price,\n      status: \"PENDING\" as const,\n      createdAt: new Date().toISOString(),\n    };\n    dispatch(addOrder(newOrder));\n    setFormData({ ...formData, units: 100000 });\n  };\n\n  return (\n    <div className={styles.trading}>\n      <h1 className={styles.title}>Trading</h1>\n\n      <div className={styles.container}>\n        {/* Order Form */}\n        <section className={styles.formSection}>\n          <h2 className={styles.sectionTitle}>New Order</h2>\n          <form className={styles.form} onSubmit={handlePlaceOrder}>\n            <div className={styles.formGroup}>\n              <label className={styles.label}>Symbol</label>\n              <select\n                className={styles.select}\n                value={formData.symbol}\n                onChange={(e) => setFormData({ ...formData, symbol: e.target.value })}\n              >\n                <option>EUR/USD</option>\n                <option>GBP/USD</option>\n                <option>SPY</option>\n              </select>\n            </div>\n\n            <div className={styles.formRow}>\n              <div className={styles.formGroup}>\n                <label className={styles.label}>Side</label>\n                <div className={styles.buttonGroup}>\n                  <button\n                    type=\"button\"\n                    className={`${styles.sideButton} ${formData.side === \"BUY\" ? styles.active : \"\"} ${styles.buy}`}\n                    onClick={() => setFormData({ ...formData, side: \"BUY\" })}\n                  >\n                    BUY\n                  </button>\n                  <button\n                    type=\"button\"\n                    className={`${styles.sideButton} ${formData.side === \"SELL\" ? styles.active : \"\"} ${styles.sell}`}\n                    onClick={() => setFormData({ ...formData, side: \"SELL\" })}\n                  >\n                    SELL\n                  </button>\n                </div>\n              </div>\n\n              <div className={styles.formGroup}>\n                <label className={styles.label}>Type</label>\n                <select\n                  className={styles.select}\n                  value={formData.type}\n                  onChange={(e) => setFormData({ ...formData, type: e.target.value as any })}\n                >\n                  <option>MARKET</option>\n                  <option>LIMIT</option>\n                  <option>STOP</option>\n                </select>\n              </div>\n            </div>\n\n            <div className={styles.formGroup}>\n              <label className={styles.label}>Units</label>\n              <input\n                type=\"number\"\n                className={styles.input}\n                value={formData.units}\n                onChange={(e) => setFormData({ ...formData, units: parseInt(e.target.value) })}\n              />\n            </div>\n\n            <div className={styles.formGroup}>\n              <label className={styles.label}>Price (if Limit/Stop)</label>\n              <input\n                type=\"number\"\n                step=\"0.0001\"\n                className={styles.input}\n                value={formData.price}\n                onChange={(e) => setFormData({ ...formData, price: parseFloat(e.target.value) })}\n              />\n            </div>\n\n            <button type=\"submit\" className={`${styles.button} ${styles.primary}`}>\n              Place Order\n            </button>\n          </form>\n        </section>\n\n        {/* Active Orders */}\n        <section className={styles.ordersSection}>\n          <h2 className={styles.sectionTitle}>Active Orders ({orders.orders.filter((o) => o.status === \"PENDING\").length})</h2>\n          <div className={styles.table}>\n            <div className={styles.tableHeader}>\n              <div>Symbol</div>\n              <div>Type</div>\n              <div>Side</div>\n              <div>Units</div>\n              <div>Price</div>\n              <div>Status</div>\n              <div>Time</div>\n            </div>\n            {orders.orders\n              .filter((o) => o.status === \"PENDING\")\n              .map((order) => (\n                <div key={order.id} className={styles.tableRow}>\n                  <div>{order.symbol}</div>\n                  <div>{order.type}</div>\n                  <div>\n                    <span className={`${styles.badge} ${order.side === \"BUY\" ? styles.buy : styles.sell}`}>\n                      {order.side}\n                    </span>\n                  </div>\n                  <div>{order.units.toLocaleString()}</div>\n                  <div className={styles.price}>{order.price.toFixed(5)}</div>\n                  <div>\n                    <span className={`${styles.statusBadge} ${styles.pending}`}>{order.status}</span>\n                  </div>\n                  <div className={styles.time}>\n                    {new Date(order.createdAt).toLocaleTimeString()}\n                  </div>\n                </div>\n              ))}\n          </div>\n        </section>\n\n        {/* Trade History */}\n        <section className={styles.historySection}>\n          <h2 className={styles.sectionTitle}>Trade History</h2>\n          <div className={styles.table}>\n            <div className={styles.tableHeader}>\n              <div>Symbol</div>\n              <div>Side</div>\n              <div>Units</div>\n              <div>Entry</div>\n              <div>Exit</div>\n              <div>P&L</div>\n              <div>Return %</div>\n            </div>\n            {orders.orders\n              .filter((o) => o.status === \"FILLED\")\n              .map((order) => {\n                const currentPrice = quotes.quotes[order.symbol]?.last || order.price;\n                const pnl = (order.side === \"BUY\" ? 1 : -1) * (currentPrice - order.price) * order.units;\n                const pnlPercent = ((pnl / (order.price * order.units)) * 100) || 0;\n                return (\n                  <div key={order.id} className={styles.tableRow}>\n                    <div>{order.symbol}</div>\n                    <div>\n                      <span className={`${styles.badge} ${order.side === \"BUY\" ? styles.buy : styles.sell}`}>\n                        {order.side}\n                      </span>\n                    </div>\n                    <div>{order.units.toLocaleString()}</div>\n                    <div className={styles.price}>{order.price.toFixed(5)}</div>\n                    <div className={styles.price}>{currentPrice.toFixed(5)}</div>\n                    <div className={`${styles.price} ${pnl >= 0 ? styles.positive : styles.negative}`}>\n                      ${pnl.toFixed(2)}\n                    </div>\n                    <div className={`${styles.price} ${pnlPercent >= 0 ? styles.positive : styles.negative}`}>\n                      {pnlPercent >= 0 ? \"+\" : \"\"}{pnlPercent.toFixed(2)}%\n                    </div>\n                  </div>\n                );\n              })}\n          </div>\n        </section>\n      </div>\n    </div>\n  );\n}
+"use client";
+
+import { useSelector, useDispatch } from "react-redux";
+import { RootState } from "@/lib/store";
+import { addOrder } from "@/lib/slices/ordersSlice";
+import { useState } from "react";
+import styles from "./Trading.module.css";
+
+export default function Trading() {
+  const dispatch = useDispatch();
+  const orders = useSelector((state: RootState) => state.orders);
+  const positions = useSelector((state: RootState) => state.positions);
+  const quotes = useSelector((state: RootState) => state.quotes);
+
+  const [formData, setFormData] = useState({
+    symbol: "EUR/USD",
+    side: "BUY" as const,
+    type: "MARKET" as const,
+    units: 100000,
+    price: 1.0845,
+  });
+
+  const handlePlaceOrder = (e: React.FormEvent) => {
+    e.preventDefault();
+    const newOrder = {
+      id: `ord-${Date.now()}`,
+      symbol: formData.symbol,
+      side: formData.side,
+      type: formData.type,
+      units: formData.units,
+      price: formData.price,
+      status: "PENDING" as const,
+      createdAt: new Date().toISOString(),
+    };
+    dispatch(addOrder(newOrder));
+    setFormData({ ...formData, units: 100000 });
+  };
+
+  return (
+    <div className={styles.trading}>
+      <h1 className={styles.title}>Trading</h1>
+
+      <div className={styles.container}>
+        {/* Order Form */}
+        <section className={styles.formSection}>
+          <h2 className={styles.sectionTitle}>New Order</h2>
+          <form className={styles.form} onSubmit={handlePlaceOrder}>
+            <div className={styles.formGroup}>
+              <label className={styles.label}>Symbol</label>
+              <select
+                className={styles.select}
+                value={formData.symbol}
+                onChange={(e) => setFormData({ ...formData, symbol: e.target.value })}
+              >
+                <option>EUR/USD</option>
+                <option>GBP/USD</option>
+                <option>SPY</option>
+              </select>
+            </div>
+
+            <div className={styles.formRow}>
+              <div className={styles.formGroup}>
+                <label className={styles.label}>Side</label>
+                <div className={styles.buttonGroup}>
+                  <button
+                    type="button"
+                    className={`${styles.sideButton} ${formData.side === "BUY" ? styles.active : ""} ${styles.buy}`}
+                    onClick={() => setFormData({ ...formData, side: "BUY" })}
+                  >
+                    BUY
+                  </button>
+                  <button
+                    type="button"
+                    className={`${styles.sideButton} ${formData.side === "SELL" ? styles.active : ""} ${styles.sell}`}
+                    onClick={() => setFormData({ ...formData, side: "SELL" })}
+                  >
+                    SELL
+                  </button>
+                </div>
+              </div>
+
+              <div className={styles.formGroup}>
+                <label className={styles.label}>Type</label>
+                <select
+                  className={styles.select}
+                  value={formData.type}
+                  onChange={(e) => setFormData({ ...formData, type: e.target.value as any })}
+                >
+                  <option>MARKET</option>
+                  <option>LIMIT</option>
+                  <option>STOP</option>
+                </select>
+              </div>
+            </div>
+
+            <div className={styles.formGroup}>
+              <label className={styles.label}>Units</label>
+              <input
+                type="number"
+                className={styles.input}
+                value={formData.units}
+                onChange={(e) => setFormData({ ...formData, units: parseInt(e.target.value) })}
+              />
+            </div>
+
+            <div className={styles.formGroup}>
+              <label className={styles.label}>Price (if Limit/Stop)</label>
+              <input
+                type="number"
+                step="0.0001"
+                className={styles.input}
+                value={formData.price}
+                onChange={(e) => setFormData({ ...formData, price: parseFloat(e.target.value) })}
+              />
+            </div>
+
+            <button type="submit" className={`${styles.button} ${styles.primary}`}>
+              Place Order
+            </button>
+          </form>
+        </section>
+
+        {/* Active Orders */}
+        <section className={styles.ordersSection}>
+          <h2 className={styles.sectionTitle}>Active Orders ({orders.orders.filter((o) => o.status === "PENDING").length})</h2>
+          <div className={styles.table}>
+            <div className={styles.tableHeader}>
+              <div>Symbol</div>
+              <div>Type</div>
+              <div>Side</div>
+              <div>Units</div>
+              <div>Price</div>
+              <div>Status</div>
+              <div>Time</div>
+            </div>
+            {orders.orders
+              .filter((o) => o.status === "PENDING")
+              .map((order) => (
+                <div key={order.id} className={styles.tableRow}>
+                  <div>{order.symbol}</div>
+                  <div>{order.type}</div>
+                  <div>
+                    <span className={`${styles.badge} ${order.side === "BUY" ? styles.buy : styles.sell}`}>
+                      {order.side}
+                    </span>
+                  </div>
+                  <div>{order.units.toLocaleString()}</div>
+                  <div className={styles.price}>{order.price.toFixed(5)}</div>
+                  <div>
+                    <span className={`${styles.statusBadge} ${styles.pending}`}>{order.status}</span>
+                  </div>
+                  <div className={styles.time}>
+                    {new Date(order.createdAt).toLocaleTimeString()}
+                  </div>
+                </div>
+              ))}
+          </div>
+        </section>
+
+        {/* Trade History */}
+        <section className={styles.historySection}>
+          <h2 className={styles.sectionTitle}>Trade History</h2>
+          <div className={styles.table}>
+            <div className={styles.tableHeader}>
+              <div>Symbol</div>
+              <div>Side</div>
+              <div>Units</div>
+              <div>Entry</div>
+              <div>Exit</div>
+              <div>P&L</div>
+              <div>Return %</div>
+            </div>
+            {orders.orders
+              .filter((o) => o.status === "FILLED")
+              .map((order) => {
+                const currentPrice = quotes.quotes[order.symbol]?.last || order.price;
+                const pnl = (order.side === "BUY" ? 1 : -1) * (currentPrice - order.price) * order.units;
+                const pnlPercent = ((pnl / (order.price * order.units)) * 100) || 0;
+                return (
+                  <div key={order.id} className={styles.tableRow}>
+                    <div>{order.symbol}</div>
+                    <div>
+                      <span className={`${styles.badge} ${order.side === "BUY" ? styles.buy : styles.sell}`}>
+                        {order.side}
+                      </span>
+                    </div>
+                    <div>{order.units.toLocaleString()}</div>
+                    <div className={styles.price}>{order.price.toFixed(5)}</div>
+                    <div className={styles.price}>{currentPrice.toFixed(5)}</div>
+                    <div className={`${styles.price} ${pnl >= 0 ? styles.positive : styles.negative}`}>
+                      ${pnl.toFixed(2)}
+                    </div>
+                    <div className={`${styles.price} ${pnlPercent >= 0 ? styles.positive : styles.negative}`}>
+                      {pnlPercent >= 0 ? "+" : ""}{pnlPercent.toFixed(2)}%
+                    </div>
+                  </div>
+                );
+              })}
+          </div>
+        </section>
+      </div>
+    </div>
+  );
+}

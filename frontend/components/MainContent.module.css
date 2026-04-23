@@ -1,1 +1,28 @@
-.mainContent {\n  flex: 1;\n  margin-top: 64px;\n  margin-left: 280px;\n  overflow: auto;\n  background: var(--color-dark);\n  transition: margin-left 0.3s;\n}\n\n.mainContent.withSidebar {\n  margin-left: 280px;\n}\n\n.mainContent.collapsedSidebar {\n  margin-left: 80px;\n}\n\n@media (max-width: 1024px) {\n  .mainContent {\n    margin-left: 80px;\n  }\n}\n\n@media (max-width: 768px) {\n  .mainContent {\n    margin-left: 0;\n  }\n}
+.mainContent {
+  flex: 1;
+  margin-top: 64px;
+  margin-left: 280px;
+  overflow: auto;
+  background: var(--color-dark);
+  transition: margin-left 0.3s;
+}
+
+.mainContent.withSidebar {
+  margin-left: 280px;
+}
+
+.mainContent.collapsedSidebar {
+  margin-left: 80px;
+}
+
+@media (max-width: 1024px) {
+  .mainContent {
+    margin-left: 80px;
+  }
+}
+
+@media (max-width: 768px) {
+  .mainContent {
+    margin-left: 0;
+  }
+}

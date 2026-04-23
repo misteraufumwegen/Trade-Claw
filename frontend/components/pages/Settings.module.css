@@ -1,1 +1,277 @@
-.settings {\n  padding: var(--spacing-xl);\n  max-width: 900px;\n}\n\n.title {\n  font-family: var(--font-sans);\n  font-size: var(--font-size-3xl);\n  font-weight: var(--font-weight-bold);\n  color: var(--color-text-primary);\n  margin-bottom: var(--spacing-2xl);\n}\n\n.form {\n  display: flex;\n  flex-direction: column;\n  gap: var(--spacing-2xl);\n}\n\n.section {\n  background: var(--color-secondary);\n  border: 1px solid var(--color-border);\n  border-radius: var(--radius-md);\n  padding: var(--spacing-l);\n  box-shadow: var(--shadow-sm);\n}\n\n.sectionTitle {\n  font-family: var(--font-sans);\n  font-size: var(--font-size-xl);\n  font-weight: var(--font-weight-bold);\n  color: var(--color-text-primary);\n  margin-bottom: var(--spacing-l);\n}\n\n.formGroup {\n  display: flex;\n  flex-direction: column;\n  gap: var(--spacing-m);\n  margin-bottom: var(--spacing-l);\n}\n\n.formGroup:last-child {\n  margin-bottom: 0;\n}\n\n.label {\n  font-family: var(--font-sans);\n  font-size: var(--font-size-sm);\n  font-weight: var(--font-weight-bold);\n  color: var(--color-text-secondary);\n  text-transform: uppercase;\n  letter-spacing: 0.5px;\n}\n\n.input {\n  background: var(--color-dark);\n  border: 1px solid var(--color-border);\n  color: var(--color-text-primary);\n  padding: var(--spacing-m);\n  border-radius: var(--radius-md);\n  font-family: var(--font-sans);\n  font-size: var(--font-size-base);\n  transition: border-color 0.2s;\n}\n\n.input:focus {\n  outline: none;\n  border-color: var(--color-primary);\n  box-shadow: 0 0 0 3px rgba(0, 217, 255, 0.1);\n}\n\n.radioGroup {\n  display: flex;\n  flex-direction: column;\n  gap: var(--spacing-m);\n}\n\n.radioLabel {\n  display: flex;\n  align-items: center;\n  gap: var(--spacing-m);\n  font-family: var(--font-sans);\n  font-size: var(--font-size-base);\n  color: var(--color-text-primary);\n  cursor: pointer;\n}\n\n.radio {\n  width: 20px;\n  height: 20px;\n  cursor: pointer;\n  accent-color: var(--color-primary);\n}\n\n.sliderGroup {\n  display: flex;\n  flex-direction: column;\n  gap: var(--spacing-m);\n  margin-bottom: var(--spacing-l);\n}\n\n.value {\n  font-family: var(--font-mono);\n  color: var(--color-primary);\n  font-weight: var(--font-weight-bold);\n}\n\n.slider {\n  accent-color: var(--color-primary);\n  width: 100%;\n  height: 6px;\n  border-radius: var(--radius-md);\n  outline: none;\n  -webkit-appearance: none;\n  appearance: none;\n}\n\n.slider::-webkit-slider-thumb {\n  -webkit-appearance: none;\n  appearance: none;\n  width: 20px;\n  height: 20px;\n  border-radius: 50%;\n  background: var(--color-primary);\n  cursor: pointer;\n  transition: all 0.2s;\n}\n\n.slider::-webkit-slider-thumb:hover {\n  transform: scale(1.2);\n}\n\n.slider::-moz-range-thumb {\n  width: 20px;\n  height: 20px;\n  border-radius: 50%;\n  background: var(--color-primary);\n  cursor: pointer;\n  border: none;\n  transition: all 0.2s;\n}\n\n.slider::-moz-range-thumb:hover {\n  transform: scale(1.2);\n}\n\n.checkboxGroup {\n  display: flex;\n  flex-direction: column;\n  gap: var(--spacing-m);\n}\n\n.checkboxLabel {\n  display: flex;\n  align-items: center;\n  gap: var(--spacing-m);\n  font-family: var(--font-sans);\n  font-size: var(--font-size-base);\n  color: var(--color-text-primary);\n  cursor: pointer;\n}\n\n.checkbox {\n  width: 20px;\n  height: 20px;\n  cursor: pointer;\n  accent-color: var(--color-primary);\n}\n\n.buttonGroup {\n  display: grid;\n  grid-template-columns: 1fr 1fr;\n  gap: var(--spacing-m);\n}\n\n.themeButton {\n  background: var(--color-dark);\n  border: 1px solid var(--color-border);\n  color: var(--color-text-primary);\n  padding: var(--spacing-m);\n  border-radius: var(--radius-md);\n  font-family: var(--font-sans);\n  font-size: var(--font-size-base);\n  cursor: pointer;\n  transition: all 0.2s;\n}\n\n.themeButton:hover {\n  border-color: var(--color-primary);\n}\n\n.themeButton.active {\n  background: rgba(0, 217, 255, 0.2);\n  border-color: var(--color-primary);\n  color: var(--color-primary);\n}\n\n.actions {\n  display: grid;\n  grid-template-columns: 1fr 1fr;\n  gap: var(--spacing-m);\n  padding: var(--spacing-l);\n  background: var(--color-secondary);\n  border: 1px solid var(--color-border);\n  border-radius: var(--radius-md);\n}\n\n.button {\n  padding: var(--spacing-m);\n  border: none;\n  border-radius: var(--radius-md);\n  font-family: var(--font-sans);\n  font-size: var(--font-size-base);\n  font-weight: var(--font-weight-bold);\n  cursor: pointer;\n  transition: all 0.2s;\n  text-transform: uppercase;\n}\n\n.button.primary {\n  background: var(--color-primary);\n  color: var(--color-dark);\n}\n\n.button.primary:hover {\n  opacity: 0.9;\n  transform: scale(1.02);\n}\n\n.button.secondary {\n  background: var(--color-secondary);\n  border: 1px solid var(--color-border);\n  color: var(--color-text-primary);\n}\n\n.button.secondary:hover {\n  border-color: var(--color-primary);\n  color: var(--color-primary);\n}\n\n.versionSection {\n  background: var(--color-secondary);\n  border: 1px solid var(--color-border);\n  border-radius: var(--radius-md);\n  padding: var(--spacing-l);\n  text-align: center;\n}\n\n.versionTitle {\n  font-family: var(--font-sans);\n  font-size: var(--font-size-lg);\n  font-weight: var(--font-weight-bold);\n  color: var(--color-text-primary);\n  margin-bottom: var(--spacing-m);\n}\n\n.versionInfo {\n  font-family: var(--font-sans);\n  font-size: var(--font-size-sm);\n  color: var(--color-text-secondary);\n}\n\n.versionInfo p {\n  margin: var(--spacing-s) 0;\n}\n\n@media (max-width: 768px) {\n  .settings {\n    padding: var(--spacing-l);\n  }\n\n  .actions,\n  .buttonGroup {\n    grid-template-columns: 1fr;\n  }\n}
+.settings {
+  padding: var(--spacing-xl);
+  max-width: 900px;
+}
+
+.title {
+  font-family: var(--font-sans);
+  font-size: var(--font-size-3xl);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-primary);
+  margin-bottom: var(--spacing-2xl);
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2xl);
+}
+
+.section {
+  background: var(--color-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-l);
+  box-shadow: var(--shadow-sm);
+}
+
+.sectionTitle {
+  font-family: var(--font-sans);
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-primary);
+  margin-bottom: var(--spacing-l);
+}
+
+.formGroup {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-m);
+  margin-bottom: var(--spacing-l);
+}
+
+.formGroup:last-child {
+  margin-bottom: 0;
+}
+
+.label {
+  font-family: var(--font-sans);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.input {
+  background: var(--color-dark);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-primary);
+  padding: var(--spacing-m);
+  border-radius: var(--radius-md);
+  font-family: var(--font-sans);
+  font-size: var(--font-size-base);
+  transition: border-color 0.2s;
+}
+
+.input:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(0, 217, 255, 0.1);
+}
+
+.radioGroup {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-m);
+}
+
+.radioLabel {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-m);
+  font-family: var(--font-sans);
+  font-size: var(--font-size-base);
+  color: var(--color-text-primary);
+  cursor: pointer;
+}
+
+.radio {
+  width: 20px;
+  height: 20px;
+  cursor: pointer;
+  accent-color: var(--color-primary);
+}
+
+.sliderGroup {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-m);
+  margin-bottom: var(--spacing-l);
+}
+
+.value {
+  font-family: var(--font-mono);
+  color: var(--color-primary);
+  font-weight: var(--font-weight-bold);
+}
+
+.slider {
+  accent-color: var(--color-primary);
+  width: 100%;
+  height: 6px;
+  border-radius: var(--radius-md);
+  outline: none;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--color-primary);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.slider::-webkit-slider-thumb:hover {
+  transform: scale(1.2);
+}
+
+.slider::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--color-primary);
+  cursor: pointer;
+  border: none;
+  transition: all 0.2s;
+}
+
+.slider::-moz-range-thumb:hover {
+  transform: scale(1.2);
+}
+
+.checkboxGroup {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-m);
+}
+
+.checkboxLabel {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-m);
+  font-family: var(--font-sans);
+  font-size: var(--font-size-base);
+  color: var(--color-text-primary);
+  cursor: pointer;
+}
+
+.checkbox {
+  width: 20px;
+  height: 20px;
+  cursor: pointer;
+  accent-color: var(--color-primary);
+}
+
+.buttonGroup {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--spacing-m);
+}
+
+.themeButton {
+  background: var(--color-dark);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-primary);
+  padding: var(--spacing-m);
+  border-radius: var(--radius-md);
+  font-family: var(--font-sans);
+  font-size: var(--font-size-base);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.themeButton:hover {
+  border-color: var(--color-primary);
+}
+
+.themeButton.active {
+  background: rgba(0, 217, 255, 0.2);
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+.actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--spacing-m);
+  padding: var(--spacing-l);
+  background: var(--color-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.button {
+  padding: var(--spacing-m);
+  border: none;
+  border-radius: var(--radius-md);
+  font-family: var(--font-sans);
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-bold);
+  cursor: pointer;
+  transition: all 0.2s;
+  text-transform: uppercase;
+}
+
+.button.primary {
+  background: var(--color-primary);
+  color: var(--color-dark);
+}
+
+.button.primary:hover {
+  opacity: 0.9;
+  transform: scale(1.02);
+}
+
+.button.secondary {
+  background: var(--color-secondary);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-primary);
+}
+
+.button.secondary:hover {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+.versionSection {
+  background: var(--color-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-l);
+  text-align: center;
+}
+
+.versionTitle {
+  font-family: var(--font-sans);
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-primary);
+  margin-bottom: var(--spacing-m);
+}
+
+.versionInfo {
+  font-family: var(--font-sans);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+.versionInfo p {
+  margin: var(--spacing-s) 0;
+}
+
+@media (max-width: 768px) {
+  .settings {
+    padding: var(--spacing-l);
+  }
+
+  .actions,
+  .buttonGroup {
+    grid-template-columns: 1fr;
+  }
+}

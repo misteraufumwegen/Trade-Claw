@@ -1,1 +1,9 @@
-\"use client\";\n\nimport { ReactNode } from \"react\";\nimport { Provider } from \"react-redux\";\nimport { store } from \"@/lib/store\";\n\nexport function Providers({ children }: { children: ReactNode }) {\n  return <Provider store={store}>{children}</Provider>;\n}
+"use client";
+
+import { ReactNode } from "react";
+import { Provider } from "react-redux";
+import { store } from "@/lib/store";
+
+export function Providers({ children }: { children: ReactNode }) {
+  return <Provider store={store}>{children}</Provider>;
+}

@@ -1,1 +1,240 @@
-.risk {\n  padding: var(--spacing-xl);\n  max-width: 1920px;\n  margin: 0 auto;\n}\n\n.title {\n  font-family: var(--font-sans);\n  font-size: var(--font-size-3xl);\n  font-weight: var(--font-weight-bold);\n  color: var(--color-text-primary);\n  margin-bottom: var(--spacing-2xl);\n}\n\n.metricsGrid {\n  display: grid;\n  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));\n  gap: var(--spacing-l);\n  margin-bottom: var(--spacing-2xl);\n}\n\n.metricCard {\n  background: var(--color-secondary);\n  border: 1px solid var(--color-border);\n  border-radius: var(--radius-md);\n  padding: var(--spacing-l);\n  box-shadow: var(--shadow-sm);\n  transition: all 0.2s;\n}\n\n.metricCard:hover {\n  border-color: var(--color-primary);\n  box-shadow: var(--shadow-md);\n}\n\n.metricCard.warning {\n  border-color: var(--color-accent);\n  background: rgba(255, 183, 0, 0.05);\n}\n\n.metricLabel {\n  font-family: var(--font-sans);\n  font-size: var(--font-size-sm);\n  font-weight: var(--font-weight-bold);\n  color: var(--color-text-secondary);\n  text-transform: uppercase;\n  letter-spacing: 0.5px;\n  margin-bottom: var(--spacing-m);\n}\n\n.metricValue {\n  font-family: var(--font-mono);\n  font-size: var(--font-size-3xl);\n  font-weight: var(--font-weight-bold);\n  color: var(--color-text-primary);\n  margin-bottom: var(--spacing-m);\n}\n\n.metricValue.warning {\n  color: var(--color-accent);\n}\n\n.metricMeta {\n  font-family: var(--font-sans);\n  font-size: var(--font-size-xs);\n  color: var(--color-text-secondary);\n}\n\n.section {\n  margin-bottom: var(--spacing-2xl);\n}\n\n.sectionTitle {\n  font-family: var(--font-sans);\n  font-size: var(--font-size-2xl);\n  font-weight: var(--font-weight-bold);\n  color: var(--color-text-primary);\n  margin-bottom: var(--spacing-l);\n}\n\n.heatmap {\n  display: grid;\n  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));\n  gap: var(--spacing-m);\n  background: var(--color-secondary);\n  border: 1px solid var(--color-border);\n  border-radius: var(--radius-md);\n  padding: var(--spacing-l);\n}\n\n.heatmapCell {\n  border-radius: var(--radius-md);\n  padding: var(--spacing-m);\n  display: flex;\n  flex-direction: column;\n  align-items: center;\n  justify-content: center;\n  gap: var(--spacing-s);\n  border: 1px solid var(--color-border);\n}\n\n.cellLabel {\n  font-family: var(--font-sans);\n  font-size: var(--font-size-sm);\n  font-weight: var(--font-weight-bold);\n  color: var(--color-text-primary);\n}\n\n.cellValue {\n  font-family: var(--font-mono);\n  font-size: var(--font-size-lg);\n  font-weight: var(--font-weight-bold);\n  color: var(--color-text-primary);\n}\n\n.healthCards {\n  display: grid;\n  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));\n  gap: var(--spacing-l);\n}\n\n.healthCard {\n  background: var(--color-secondary);\n  border: 1px solid var(--color-border);\n  border-radius: var(--radius-md);\n  padding: var(--spacing-l);\n}\n\n.healthLabel {\n  font-family: var(--font-sans);\n  font-size: var(--font-size-sm);\n  font-weight: var(--font-weight-bold);\n  color: var(--color-text-secondary);\n  text-transform: uppercase;\n  letter-spacing: 0.5px;\n  margin-bottom: var(--spacing-s);\n}\n\n.healthValue {\n  font-family: var(--font-mono);\n  font-size: var(--font-size-2xl);\n  font-weight: var(--font-weight-bold);\n  color: var(--color-text-primary);\n  margin-bottom: var(--spacing-m);\n}\n\n.healthBar {\n  background: var(--color-dark);\n  border-radius: var(--radius-md);\n  height: 24px;\n  overflow: hidden;\n  border: 1px solid var(--color-border);\n}\n\n.healthBarFill {\n  height: 100%;\n  border-radius: var(--radius-md);\n  transition: width 0.3s;\n}\n\n.settingsGrid {\n  display: grid;\n  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));\n  gap: var(--spacing-l);\n  background: var(--color-secondary);\n  border: 1px solid var(--color-border);\n  border-radius: var(--radius-md);\n  padding: var(--spacing-l);\n}\n\n.setting {\n  display: flex;\n  flex-direction: column;\n  gap: var(--spacing-m);\n}\n\n.settingLabel {\n  font-family: var(--font-sans);\n  font-size: var(--font-size-sm);\n  font-weight: var(--font-weight-bold);\n  color: var(--color-text-secondary);\n  text-transform: uppercase;\n  letter-spacing: 0.5px;\n}\n\n.slider {\n  accent-color: var(--color-primary);\n  width: 100%;\n  height: 4px;\n  border-radius: var(--radius-md);\n  outline: none;\n  -webkit-appearance: none;\n  appearance: none;\n}\n\n.slider::-webkit-slider-thumb {\n  -webkit-appearance: none;\n  appearance: none;\n  width: 16px;\n  height: 16px;\n  border-radius: 50%;\n  background: var(--color-primary);\n  cursor: pointer;\n  transition: all 0.2s;\n}\n\n.slider::-webkit-slider-thumb:hover {\n  transform: scale(1.2);\n}\n\n.slider::-moz-range-thumb {\n  width: 16px;\n  height: 16px;\n  border-radius: 50%;\n  background: var(--color-primary);\n  cursor: pointer;\n  border: none;\n  transition: all 0.2s;\n}\n\n.slider::-moz-range-thumb:hover {\n  transform: scale(1.2);\n}\n\n.settingValue {\n  font-family: var(--font-mono);\n  font-size: var(--font-size-base);\n  font-weight: var(--font-weight-bold);\n  color: var(--color-primary);\n}\n\n@media (max-width: 768px) {\n  .risk {\n    padding: var(--spacing-l);\n  }\n\n  .settingsGrid {\n    grid-template-columns: 1fr;\n  }\n}
+.risk {
+  padding: var(--spacing-xl);
+  max-width: 1920px;
+  margin: 0 auto;
+}
+
+.title {
+  font-family: var(--font-sans);
+  font-size: var(--font-size-3xl);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-primary);
+  margin-bottom: var(--spacing-2xl);
+}
+
+.metricsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: var(--spacing-l);
+  margin-bottom: var(--spacing-2xl);
+}
+
+.metricCard {
+  background: var(--color-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-l);
+  box-shadow: var(--shadow-sm);
+  transition: all 0.2s;
+}
+
+.metricCard:hover {
+  border-color: var(--color-primary);
+  box-shadow: var(--shadow-md);
+}
+
+.metricCard.warning {
+  border-color: var(--color-accent);
+  background: rgba(255, 183, 0, 0.05);
+}
+
+.metricLabel {
+  font-family: var(--font-sans);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: var(--spacing-m);
+}
+
+.metricValue {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-3xl);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-primary);
+  margin-bottom: var(--spacing-m);
+}
+
+.metricValue.warning {
+  color: var(--color-accent);
+}
+
+.metricMeta {
+  font-family: var(--font-sans);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+}
+
+.section {
+  margin-bottom: var(--spacing-2xl);
+}
+
+.sectionTitle {
+  font-family: var(--font-sans);
+  font-size: var(--font-size-2xl);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-primary);
+  margin-bottom: var(--spacing-l);
+}
+
+.heatmap {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: var(--spacing-m);
+  background: var(--color-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-l);
+}
+
+.heatmapCell {
+  border-radius: var(--radius-md);
+  padding: var(--spacing-m);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-s);
+  border: 1px solid var(--color-border);
+}
+
+.cellLabel {
+  font-family: var(--font-sans);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-primary);
+}
+
+.cellValue {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-primary);
+}
+
+.healthCards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: var(--spacing-l);
+}
+
+.healthCard {
+  background: var(--color-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-l);
+}
+
+.healthLabel {
+  font-family: var(--font-sans);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: var(--spacing-s);
+}
+
+.healthValue {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-2xl);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-primary);
+  margin-bottom: var(--spacing-m);
+}
+
+.healthBar {
+  background: var(--color-dark);
+  border-radius: var(--radius-md);
+  height: 24px;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+}
+
+.healthBarFill {
+  height: 100%;
+  border-radius: var(--radius-md);
+  transition: width 0.3s;
+}
+
+.settingsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: var(--spacing-l);
+  background: var(--color-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-l);
+}
+
+.setting {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-m);
+}
+
+.settingLabel {
+  font-family: var(--font-sans);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.slider {
+  accent-color: var(--color-primary);
+  width: 100%;
+  height: 4px;
+  border-radius: var(--radius-md);
+  outline: none;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--color-primary);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.slider::-webkit-slider-thumb:hover {
+  transform: scale(1.2);
+}
+
+.slider::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--color-primary);
+  cursor: pointer;
+  border: none;
+  transition: all 0.2s;
+}
+
+.slider::-moz-range-thumb:hover {
+  transform: scale(1.2);
+}
+
+.settingValue {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-primary);
+}
+
+@media (max-width: 768px) {
+  .risk {
+    padding: var(--spacing-l);
+  }
+
+  .settingsGrid {
+    grid-template-columns: 1fr;
+  }
+}

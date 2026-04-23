@@ -1,1 +1,111 @@
-"use client\";\n\nimport { useSelector } from \"react-redux\";\nimport { RootState } from \"@/lib/store\";\nimport styles from \"./Dashboard.module.css\";\n\nexport default function Dashboard() {\n  const positions = useSelector((state: RootState) => state.positions);\n  const quotes = useSelector((state: RootState) => state.quotes);\n\n  const calculateAccountMetrics = () => {\n    const equity = 10000 + positions.totalPnl;\n    const usedMargin = positions.positions.reduce((sum, p) => sum + (p.units * p.currentPrice) / 100, 0);\n    const freeMargin = 100000 - usedMargin;\n    const marginLevel = usedMargin > 0 ? (equity / usedMargin) * 100 : 100;\n    return { equity, usedMargin, freeMargin, marginLevel };\n  };\n\n  const metrics = calculateAccountMetrics();\n\n  return (\n    <div className={styles.dashboard}>\n      <h1 className={styles.title}>Dashboard</h1>\n\n      {/* Key Metrics Grid */}\n      <div className={styles.metricsGrid}>\n        <div className={styles.metricCard}>\n          <div className={styles.metricLabel}>Account Equity</div>\n          <div className={styles.metricValue}>${metrics.equity.toFixed(2)}</div>\n          <div className={styles.metricMeta}>Initial: $10,000.00</div>\n        </div>\n\n        <div className={styles.metricCard}>\n          <div className={styles.metricLabel}>Total P&L</div>\n          <div className={`${styles.metricValue} ${positions.totalPnl >= 0 ? styles.positive : styles.negative}`}>\n            ${positions.totalPnl.toFixed(2)}\n          </div>\n          <div className={styles.metricMeta}>{((positions.totalPnl / 10000) * 100).toFixed(2)}% Return</div>\n        </div>\n\n        <div className={styles.metricCard}>\n          <div className={styles.metricLabel}>Margin Level</div>\n          <div className={styles.metricValue}>{metrics.marginLevel.toFixed(0)}%</div>\n          <div className={styles.metricMeta}>Used: ${metrics.usedMargin.toFixed(2)}</div>\n        </div>\n\n        <div className={styles.metricCard}>\n          <div className={styles.metricLabel}>Open Positions</div>\n          <div className={styles.metricValue}>{positions.positions.length}</div>\n          <div className={styles.metricMeta}>Active trades</div>\n        </div>\n      </div>\n\n      {/* Positions Overview */}\n      <section className={styles.section}>\n        <h2 className={styles.sectionTitle}>Open Positions</h2>\n        <div className={styles.positionsTable}>\n          <div className={styles.tableHeader}>\n            <div className={styles.columnSymbol}>Symbol</div>\n            <div className={styles.columnSide}>Side</div>\n            <div className={styles.columnUnits}>Units</div>\n            <div className={styles.columnPrice}>Entry Price</div>\n            <div className={styles.columnPrice}>Current</div>\n            <div className={styles.columnPnl}>P&L</div>\n            <div className={styles.columnPnlPercent}>%</div>\n          </div>\n          {positions.positions.map((pos) => (\n            <div key={pos.id} className={styles.tableRow}>\n              <div className={styles.columnSymbol}>\n                <strong>{pos.symbol}</strong>\n              </div>\n              <div className={styles.columnSide}>\n                <span className={`${styles.badge} ${pos.side === \"BUY\" ? styles.buy : styles.sell}`}>\n                  {pos.side}\n                </span>\n              </div>\n              <div className={styles.columnUnits}>{pos.units.toLocaleString()}</div>\n              <div className={styles.columnPrice}>{pos.entryPrice.toFixed(5)}</div>\n              <div className={styles.columnPrice}>{pos.currentPrice.toFixed(5)}</div>\n              <div className={`${styles.columnPnl} ${pos.pnl >= 0 ? styles.positive : styles.negative}`}>\n                ${pos.pnl.toFixed(2)}\n              </div>\n              <div className={`${styles.columnPnlPercent} ${pos.pnlPercent >= 0 ? styles.positive : styles.negative}`}>\n                {pos.pnlPercent >= 0 ? \"+\" : \"\"}{pos.pnlPercent.toFixed(2)}%\n              </div>\n            </div>\n          ))}\n        </div>\n      </section>\n\n      {/* Live Quotes */}\n      <section className={styles.section}>\n        <h2 className={styles.sectionTitle}>Market Quotes</h2>\n        <div className={styles.quotesGrid}>\n          {Object.entries(quotes.quotes).map(([symbol, quote]) => (\n            <div key={symbol} className={styles.quoteCard}>\n              <div className={styles.quoteSymbol}>{symbol}</div>\n              <div className={styles.quoteBidAsk}>\n                <span>Bid: {quote.bid.toFixed(5)}</span>\n                <span>Ask: {quote.ask.toFixed(5)}</span>\n              </div>\n              <div className={`${styles.quoteChange} ${quote.changePercent! >= 0 ? styles.positive : styles.negative}`}>\n                {quote.changePercent! >= 0 ? \"+\" : \"\"}{quote.changePercent?.toFixed(2)}%\n              </div>\n            </div>\n          ))}\n        </div>\n      </section>\n    </div>\n  );\n}
+"use client";
+
+import { useSelector } from "react-redux";
+import { RootState } from "@/lib/store";
+import styles from "./Dashboard.module.css";
+
+export default function Dashboard() {
+  const positions = useSelector((state: RootState) => state.positions);
+  const quotes = useSelector((state: RootState) => state.quotes);
+
+  const calculateAccountMetrics = () => {
+    const equity = 10000 + positions.totalPnl;
+    const usedMargin = positions.positions.reduce((sum, p) => sum + (p.units * p.currentPrice) / 100, 0);
+    const freeMargin = 100000 - usedMargin;
+    const marginLevel = usedMargin > 0 ? (equity / usedMargin) * 100 : 100;
+    return { equity, usedMargin, freeMargin, marginLevel };
+  };
+
+  const metrics = calculateAccountMetrics();
+
+  return (
+    <div className={styles.dashboard}>
+      <h1 className={styles.title}>Dashboard</h1>
+
+      {/* Key Metrics Grid */}
+      <div className={styles.metricsGrid}>
+        <div className={styles.metricCard}>
+          <div className={styles.metricLabel}>Account Equity</div>
+          <div className={styles.metricValue}>${metrics.equity.toFixed(2)}</div>
+          <div className={styles.metricMeta}>Initial: $10,000.00</div>
+        </div>
+
+        <div className={styles.metricCard}>
+          <div className={styles.metricLabel}>Total P&L</div>
+          <div className={`${styles.metricValue} ${positions.totalPnl >= 0 ? styles.positive : styles.negative}`}>
+            ${positions.totalPnl.toFixed(2)}
+          </div>
+          <div className={styles.metricMeta}>{((positions.totalPnl / 10000) * 100).toFixed(2)}% Return</div>
+        </div>
+
+        <div className={styles.metricCard}>
+          <div className={styles.metricLabel}>Margin Level</div>
+          <div className={styles.metricValue}>{metrics.marginLevel.toFixed(0)}%</div>
+          <div className={styles.metricMeta}>Used: ${metrics.usedMargin.toFixed(2)}</div>
+        </div>
+
+        <div className={styles.metricCard}>
+          <div className={styles.metricLabel}>Open Positions</div>
+          <div className={styles.metricValue}>{positions.positions.length}</div>
+          <div className={styles.metricMeta}>Active trades</div>
+        </div>
+      </div>
+
+      {/* Positions Overview */}
+      <section className={styles.section}>
+        <h2 className={styles.sectionTitle}>Open Positions</h2>
+        <div className={styles.positionsTable}>
+          <div className={styles.tableHeader}>
+            <div className={styles.columnSymbol}>Symbol</div>
+            <div className={styles.columnSide}>Side</div>
+            <div className={styles.columnUnits}>Units</div>
+            <div className={styles.columnPrice}>Entry Price</div>
+            <div className={styles.columnPrice}>Current</div>
+            <div className={styles.columnPnl}>P&L</div>
+            <div className={styles.columnPnlPercent}>%</div>
+          </div>
+          {positions.positions.map((pos) => (
+            <div key={pos.id} className={styles.tableRow}>
+              <div className={styles.columnSymbol}>
+                <strong>{pos.symbol}</strong>
+              </div>
+              <div className={styles.columnSide}>
+                <span className={`${styles.badge} ${pos.side === "BUY" ? styles.buy : styles.sell}`}>
+                  {pos.side}
+                </span>
+              </div>
+              <div className={styles.columnUnits}>{pos.units.toLocaleString()}</div>
+              <div className={styles.columnPrice}>{pos.entryPrice.toFixed(5)}</div>
+              <div className={styles.columnPrice}>{pos.currentPrice.toFixed(5)}</div>
+              <div className={`${styles.columnPnl} ${pos.pnl >= 0 ? styles.positive : styles.negative}`}>
+                ${pos.pnl.toFixed(2)}
+              </div>
+              <div className={`${styles.columnPnlPercent} ${pos.pnlPercent >= 0 ? styles.positive : styles.negative}`}>
+                {pos.pnlPercent >= 0 ? "+" : ""}{pos.pnlPercent.toFixed(2)}%
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* Live Quotes */}
+      <section className={styles.section}>
+        <h2 className={styles.sectionTitle}>Market Quotes</h2>
+        <div className={styles.quotesGrid}>
+          {Object.entries(quotes.quotes).map(([symbol, quote]) => (
+            <div key={symbol} className={styles.quoteCard}>
+              <div className={styles.quoteSymbol}>{symbol}</div>
+              <div className={styles.quoteBidAsk}>
+                <span>Bid: {quote.bid.toFixed(5)}</span>
+                <span>Ask: {quote.ask.toFixed(5)}</span>
+              </div>
+              <div className={`${styles.quoteChange} ${quote.changePercent! >= 0 ? styles.positive : styles.negative}`}>
+                {quote.changePercent! >= 0 ? "+" : ""}{quote.changePercent?.toFixed(2)}%
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+    </div>
+  );
+}
