@@ -1,39 +1,56 @@
 "use client";
 
 import { useSelector, useDispatch } from "react-redux";
-import { RootState } from "@/lib/store";
-import { addOrder } from "@/lib/slices/ordersSlice";
-import { useState } from "react";
+import { AppDispatch, RootState } from "@/lib/store";
+import { useState, useEffect } from "react";
+import { placeOrder, fetchOrders, fetchPositions } from "@/lib/thunks";
 import styles from "./Trading.module.css";
 
 export default function Trading() {
-  const dispatch = useDispatch();
+  const dispatch = useDispatch<AppDispatch>();
   const orders = useSelector((state: RootState) => state.orders);
   const positions = useSelector((state: RootState) => state.positions);
   const quotes = useSelector((state: RootState) => state.quotes);
 
-  const [formData, setFormData] = useState({
+  // Fetch orders and positions on mount
+  useEffect(() => {
+    dispatch(fetchOrders());
+    dispatch(fetchPositions());
+  }, [dispatch]);
+
+  const [formData, setFormData] = useState<{
+    symbol: string;
+    side: "BUY" | "SELL";
+    type: "MARKET" | "LIMIT" | "STOP";
+    units: number;
+    price: number;
+  }>({
     symbol: "EUR/USD",
-    side: "BUY" as const,
-    type: "MARKET" as const,
+    side: "BUY",
+    type: "MARKET",
     units: 100000,
     price: 1.0845,
   });
 
-  const handlePlaceOrder = (e: React.FormEvent) => {
+  const handlePlaceOrder = async (e: React.FormEvent) => {
     e.preventDefault();
-    const newOrder = {
-      id: `ord-${Date.now()}`,
-      symbol: formData.symbol,
-      side: formData.side,
-      type: formData.type,
-      units: formData.units,
-      price: formData.price,
-      status: "PENDING" as const,
-      createdAt: new Date().toISOString(),
-    };
-    dispatch(addOrder(newOrder));
-    setFormData({ ...formData, units: 100000 });
+    try {
+      // Dispatch the async thunk to place order on backend
+      const result = await dispatch(
+        placeOrder({
+          instrument: formData.symbol.replace("/", "_"),
+          units: formData.units,
+          order_type: formData.type,
+          price: formData.type !== "MARKET" ? formData.price : undefined,
+        })
+      );
+      // Reset form after successful placement
+      setFormData({ ...formData, units: 100000 });
+      // Refresh orders after placing
+      dispatch(fetchOrders());
+    } catch (error) {
+      console.error("Failed to place order:", error);
+    }
   };
 
   return (

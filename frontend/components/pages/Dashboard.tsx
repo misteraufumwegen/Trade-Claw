@@ -1,12 +1,23 @@
 "use client";
 
-import { useSelector } from "react-redux";
-import { RootState } from "@/lib/store";
+import { useEffect } from "react";
+import { useSelector, useDispatch } from "react-redux";
+import { AppDispatch, RootState } from "@/lib/store";
+import { fetchQuotes, fetchPositions, fetchAccount } from "@/lib/thunks";
 import styles from "./Dashboard.module.css";
 
 export default function Dashboard() {
+  const dispatch = useDispatch<AppDispatch>();
   const positions = useSelector((state: RootState) => state.positions);
   const quotes = useSelector((state: RootState) => state.quotes);
+  const account = useSelector((state: RootState) => state.account);
+
+  // Fetch data on mount
+  useEffect(() => {
+    dispatch(fetchQuotes(["EUR_USD", "GBP_USD", "SPY"]));
+    dispatch(fetchPositions());
+    dispatch(fetchAccount());
+  }, [dispatch]);
 
   const calculateAccountMetrics = () => {
     const equity = 10000 + positions.totalPnl;
