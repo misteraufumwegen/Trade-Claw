@@ -2,31 +2,45 @@
 Backtest API endpoints
 POST /backtest - Run backtest
 GET /backtest/{id} - Get backtest results
+GET /backtest - List all backtests
 """
 import logging
 import uuid
-from fastapi import APIRouter, HTTPException, Path
+from fastapi import APIRouter, HTTPException, Path, Depends
 from pydantic import BaseModel
 from typing import Optional, List
 from datetime import datetime
 from app.services.yfinance import yfinance_client
+from app.models.database_models import BacktestModel
+from app.core.database import get_db
+from sqlalchemy.orm import Session
 import json
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
-# Simple in-memory backtest storage (should be database in production)
-backtest_jobs = {}
-
 class BacktestRequest(BaseModel):
     """Backtest request schema"""
     instrument: str
-    start_date: str
-    end_date: str
+    start_date: str  # ISO format: YYYY-MM-DD
+    end_date: str    # ISO format: YYYY-MM-DD
     strategy: str = "SMA_crossover"
     initial_balance: float = 100000.0
     risk_per_trade: float = 0.02
+    strategy_name: Optional[str] = None  # Display name for UI
+
+class BacktestResponse(BaseModel):
+    """Backtest response schema"""
+    backtest_id: str
+    status: str
+    instrument: str
+    start_date: str
+    end_date: str
+    strategy: str
+    initial_balance: float
+    created_at: str
+    completed_at: Optional[str] = None
 
 class BacktestStatistics(BaseModel):
     """Backtest performance statistics"""
@@ -153,12 +167,13 @@ def run_sma_backtest(data: dict, initial_balance: float, risk_per_trade: float) 
         raise
 
 @router.post("/backtest")
-async def run_backtest(backtest_req: BacktestRequest):
+async def run_backtest(backtest_req: BacktestRequest, db: Session = Depends(get_db)):
     """
     Run a backtest with specified parameters
     
     Args:
         backtest_req: Backtest parameters (instrument, dates, strategy, etc.)
+        db: Database session
     
     Returns:
         Backtest job ID and status
@@ -176,6 +191,7 @@ async def run_backtest(backtest_req: BacktestRequest):
         
         # Create backtest job
         backtest_id = f"bt_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:8]}"
+        created_at = datetime.utcnow()
         
         # Fetch historical data
         logger.info(f"Fetching data for {backtest_req.instrument} from {backtest_req.start_date} to {backtest_req.end_date}")
@@ -203,24 +219,31 @@ async def run_backtest(backtest_req: BacktestRequest):
         else:
             raise HTTPException(status_code=400, detail=f"Unknown strategy: {backtest_req.strategy}")
         
-        # Store results
-        backtest_jobs[backtest_id] = {
-            "id": backtest_id,
-            "instrument": backtest_req.instrument,
-            "start_date": backtest_req.start_date,
-            "end_date": backtest_req.end_date,
-            "strategy": backtest_req.strategy,
-            "initial_balance": backtest_req.initial_balance,
-            "risk_per_trade": backtest_req.risk_per_trade,
-            "status": "COMPLETED",
-            "statistics": results["statistics"],
-            "trades": results["trades"],
-            "equity_curve": results["equity_curve"],
-            "created_at": datetime.utcnow().isoformat() + "Z",
-            "completed_at": datetime.utcnow().isoformat() + "Z"
-        }
+        # Store in database
+        completed_at = datetime.utcnow()
         
-        logger.info(f"Backtest {backtest_id} completed")
+        backtest_model = BacktestModel(
+            id=backtest_id,
+            instrument=backtest_req.instrument,
+            start_date=backtest_req.start_date,
+            end_date=backtest_req.end_date,
+            strategy=backtest_req.strategy,
+            initial_balance=backtest_req.initial_balance,
+            risk_per_trade=backtest_req.risk_per_trade,
+            status="COMPLETED",
+            statistics_json=json.dumps(results["statistics"]),
+            trades_json=json.dumps(results["trades"]),
+            equity_curve_json=json.dumps(results["equity_curve"]),
+            created_at=created_at,
+            started_at=created_at,
+            completed_at=completed_at
+        )
+        
+        db.add(backtest_model)
+        db.commit()
+        db.refresh(backtest_model)
+        
+        logger.info(f"Backtest {backtest_id} completed and stored in database")
         
         return {
             "backtest_id": backtest_id,
@@ -229,7 +252,9 @@ async def run_backtest(backtest_req: BacktestRequest):
             "start_date": backtest_req.start_date,
             "end_date": backtest_req.end_date,
             "strategy": backtest_req.strategy,
-            "created_at": backtest_jobs[backtest_id]["created_at"]
+            "initial_balance": backtest_req.initial_balance,
+            "created_at": created_at.isoformat() + "Z",
+            "completed_at": completed_at.isoformat() + "Z"
         }
     
     except HTTPException:
@@ -239,35 +264,45 @@ async def run_backtest(backtest_req: BacktestRequest):
         raise HTTPException(status_code=500, detail=f"Backtest failed: {str(e)}")
 
 @router.get("/backtest/{backtest_id}")
-async def get_backtest_results(backtest_id: str = Path(..., description="Backtest ID")):
+async def get_backtest_results(
+    backtest_id: str = Path(..., description="Backtest ID"),
+    db: Session = Depends(get_db)
+):
     """
     Get backtest results
     
     Args:
         backtest_id: ID of backtest to retrieve
+        db: Database session
     
     Returns:
         Complete backtest results with equity curve, trades, stats
     """
     try:
-        if backtest_id not in backtest_jobs:
+        backtest = db.query(BacktestModel).filter(BacktestModel.id == backtest_id).first()
+        
+        if not backtest:
             raise HTTPException(status_code=404, detail=f"Backtest {backtest_id} not found")
         
-        backtest = backtest_jobs[backtest_id]
+        # Parse JSON fields
+        statistics = json.loads(backtest.statistics_json) if backtest.statistics_json else {}
+        trades = json.loads(backtest.trades_json) if backtest.trades_json else []
+        equity_curve = json.loads(backtest.equity_curve_json) if backtest.equity_curve_json else []
         
         return {
             "backtest_id": backtest_id,
-            "status": backtest["status"],
-            "instrument": backtest["instrument"],
-            "start_date": backtest["start_date"],
-            "end_date": backtest["end_date"],
-            "strategy": backtest["strategy"],
-            "initial_balance": backtest["initial_balance"],
-            "statistics": backtest["statistics"],
-            "trades": backtest["trades"],
-            "equity_curve": backtest["equity_curve"],
-            "created_at": backtest["created_at"],
-            "completed_at": backtest.get("completed_at")
+            "status": backtest.status,
+            "instrument": backtest.instrument,
+            "start_date": backtest.start_date,
+            "end_date": backtest.end_date,
+            "strategy": backtest.strategy,
+            "initial_balance": backtest.initial_balance,
+            "risk_per_trade": backtest.risk_per_trade,
+            "statistics": statistics,
+            "trades": trades,
+            "equity_curve": equity_curve,
+            "created_at": backtest.created_at.isoformat() + "Z" if backtest.created_at else None,
+            "completed_at": backtest.completed_at.isoformat() + "Z" if backtest.completed_at else None
         }
     
     except HTTPException:
@@ -275,3 +310,35 @@ async def get_backtest_results(backtest_id: str = Path(..., description="Backtes
     except Exception as e:
         logger.error(f"Backtest retrieval failed: {e}")
         raise HTTPException(status_code=500, detail=f"Backtest retrieval failed: {str(e)}")
+
+@router.get("/backtest")
+async def list_backtests(db: Session = Depends(get_db)):
+    """
+    List all backtests
+    
+    Returns:
+        List of backtest summaries
+    """
+    try:
+        backtests = db.query(BacktestModel).order_by(BacktestModel.created_at.desc()).limit(50).all()
+        
+        return {
+            "count": len(backtests),
+            "backtests": [
+                {
+                    "backtest_id": bt.id,
+                    "status": bt.status,
+                    "instrument": bt.instrument,
+                    "strategy": bt.strategy,
+                    "initial_balance": bt.initial_balance,
+                    "start_date": bt.start_date,
+                    "end_date": bt.end_date,
+                    "created_at": bt.created_at.isoformat() + "Z" if bt.created_at else None
+                }
+                for bt in backtests
+            ]
+        }
+    
+    except Exception as e:
+        logger.error(f"Backtest listing failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Backtest listing failed: {str(e)}")
