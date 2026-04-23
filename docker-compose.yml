@@ -1,0 +1,90 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:16-alpine
+    container_name: trade-claw-postgres
+    environment:
+      POSTGRES_USER: ${DB_USER:-tradeuser}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-tradepass}
+      POSTGRES_DB: ${DB_NAME:-tradeclaw}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tradeuser -d tradeclaw"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - trade-claw-net
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: trade-claw-redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - trade-claw-net
+
+  # FastAPI Backend
+  backend:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.backend
+    container_name: trade-claw-backend
+    environment:
+      DATABASE_URL: postgresql://${DB_USER:-tradeuser}:${DB_PASSWORD:-tradepass}@postgres:5432/${DB_NAME:-tradeclaw}
+      REDIS_URL: redis://redis:6379
+      OANDA_API_KEY: ${OANDA_API_KEY:-}
+      OANDA_ACCOUNT_ID: ${OANDA_ACCOUNT_ID:-}
+      OANDA_ENV: ${OANDA_ENV:-practice}
+      DEBUG: ${DEBUG:-false}
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./backend:/app
+    networks:
+      - trade-claw-net
+    restart: unless-stopped
+
+  # Next.js Frontend
+  frontend:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.frontend
+    container_name: trade-claw-frontend
+    environment:
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000}
+      NEXT_PUBLIC_WS_URL: ${NEXT_PUBLIC_WS_URL:-ws://localhost:8000}
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    volumes:
+      - ./frontend:/app
+      - /app/.next
+    networks:
+      - trade-claw-net
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+    driver: local
+
+networks:
+  trade-claw-net:
+    driver: bridge
