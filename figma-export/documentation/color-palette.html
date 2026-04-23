@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trade-Claw Color Palette</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background-color: #0D1117;
+            color: #F0F6FC;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            padding: 48px 32px;
+            line-height: 1.5;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            font-size: 32px;
+            font-weight: 700;
+            margin-bottom: 8px;
+            line-height: 1.2;
+        }
+
+        .subtitle {
+            color: #8B949E;
+            font-size: 14px;
+            margin-bottom: 48px;
+        }
+
+        .section {
+            margin-bottom: 64px;
+        }
+
+        .section-title {
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 24px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid #30363D;
+        }
+
+        .color-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 24px;
+        }
+
+        .color-card {
+            background: #161B22;
+            border-radius: 8px;
+            padding: 12px;
+            border: 1px solid #30363D;
+            transition: all 0.3s ease;
+        }
+
+        .color-card:hover {
+            border-color: #00D9FF;
+            box-shadow: 0 0 0 3px rgba(0, 217, 255, 0.1);
+        }
+
+        .color-swatch {
+            width: 100%;
+            height: 120px;
+            border-radius: 6px;
+            margin-bottom: 12px;
+            border: 1px solid #30363D;
+            cursor: pointer;
+            transition: transform 0.2s ease;
+        }
+
+        .color-swatch:hover {
+            transform: scale(1.02);
+        }
+
+        .color-name {
+            font-size: 14px;
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+
+        .color-hex {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            color: #8B949E;
+            margin-bottom: 8px;
+        }
+
+        .color-rgb {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            color: #8B949E;
+            margin-bottom: 4px;
+        }
+
+        .color-usage {
+            font-size: 12px;
+            color: #8B949E;
+            line-height: 1.4;
+        }
+
+        .palette-section {
+            margin-bottom: 48px;
+        }
+
+        .palette-title {
+            font-size: 16px;
+            font-weight: 700;
+            margin-bottom: 16px;
+            color: #00D9FF;
+        }
+
+        /* Semantic colors usage */
+        .semantic-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 24px;
+        }
+
+        .semantic-item {
+            background: #161B22;
+            border: 1px solid #30363D;
+            border-radius: 8px;
+            padding: 20px;
+        }
+
+        .semantic-color-bar {
+            height: 60px;
+            border-radius: 6px;
+            margin-bottom: 16px;
+            border: 1px solid #30363D;
+        }
+
+        .semantic-name {
+            font-size: 14px;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+
+        .semantic-usage {
+            font-size: 12px;
+            color: #8B949E;
+            line-height: 1.5;
+        }
+
+        .copy-hint {
+            font-size: 10px;
+            color: #6E7681;
+            margin-top: 8px;
+            font-style: italic;
+        }
+
+        /* Text samples */
+        .text-samples {
+            background: #161B22;
+            border: 1px solid #30363D;
+            border-radius: 8px;
+            padding: 24px;
+            margin-bottom: 24px;
+        }
+
+        .sample-group {
+            margin-bottom: 24px;
+        }
+
+        .sample-label {
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+            color: #8B949E;
+            margin-bottom: 8px;
+            letter-spacing: 0.5px;
+        }
+
+        .sample-text-primary {
+            color: #F0F6FC;
+            font-size: 16px;
+            margin-bottom: 8px;
+        }
+
+        .sample-text-secondary {
+            color: #8B949E;
+            font-size: 16px;
+            margin-bottom: 8px;
+        }
+
+        .sample-success {
+            color: #10B981;
+            font-size: 16px;
+            margin-bottom: 8px;
+        }
+
+        .sample-danger {
+            color: #EF4444;
+            font-size: 16px;
+            margin-bottom: 8px;
+        }
+
+        .sample-accent {
+            color: #FFB700;
+            font-size: 16px;
+            margin-bottom: 8px;
+        }
+
+        .sample-primary {
+            color: #00D9FF;
+            font-size: 16px;
+        }
+
+        footer {
+            margin-top: 64px;
+            padding-top: 24px;
+            border-top: 1px solid #30363D;
+            font-size: 12px;
+            color: #6E7681;
+        }
+
+        .contrast-info {
+            font-size: 11px;
+            color: #6E7681;
+            margin-top: 4px;
+        }
+
+        @media (max-width: 768px) {
+            body {
+                padding: 24px 16px;
+            }
+
+            h1 {
+                font-size: 24px;
+            }
+
+            .section-title {
+                font-size: 18px;
+            }
+
+            .color-grid {
+                grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+                gap: 16px;
+            }
+
+            .color-swatch {
+                height: 100px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <h1>Trade-Claw Color Palette</h1>
+        <p class="subtitle">Design System v1.0 — Visual Reference for UI Implementation</p>
+
+        <!-- Base Colors -->
+        <div class="section">
+            <h2 class="section-title">Base Colors</h2>
+            <div class="color-grid">
+                <div class="color-card">
+                    <div class="color-swatch" style="background-color: #0D1117;"></div>
+                    <div class="color-name">Dark</div>
+                    <div class="color-hex">#0D1117</div>
+                    <div class="color-rgb">rgb(13, 17, 23)</div>
+                    <div class="color-usage">Primary background, page background</div>
+                </div>
+
+                <div class="color-card">
+                    <div class="color-swatch" style="background-color: #161B22;"></div>
+                    <div class="color-name">Secondary</div>
+                    <div class="color-hex">#161B22</div>
+                    <div class="color-rgb">rgb(22, 27, 34)</div>
+                    <div class="color-usage">Cards, elevated surfaces, containers</div>
+                </div>
+
+                <div class="color-card">
+                    <div class="color-swatch" style="background-color: #00D9FF;"></div>
+                    <div class="color-name">Primary Teal</div>
+                    <div class="color-hex">#00D9FF</div>
+                    <div class="color-rgb">rgb(0, 217, 255)</div>
+                    <div class="color-usage">CTAs, highlights, active states, focus</div>
+                </div>
+
+                <div class="color-card">
+                    <div class="color-swatch" style="background-color: #FFB700;"></div>
+                    <div class="color-name">Accent Gold</div>
+                    <div class="color-hex">#FFB700</div>
+                    <div class="color-rgb">rgb(255, 183, 0)</div>
+                    <div class="color-usage">Warnings, alerts, special emphasis</div>
+                </div>
+
+                <div class="color-card">
+                    <div class="color-swatch" style="background-color: #10B981;"></div>
+                    <div class="color-name">Success Green</div>
+                    <div class="color-hex">#10B981</div>
+                    <div class="color-rgb">rgb(16, 185, 129)</div>
+                    <div class="color-usage">Wins, positive P&L, success states</div>
+                </div>
+
+                <div class="color-card">
+                    <div class="color-swatch" style="background-color: #EF4444;"></div>
+                    <div class="color-name">Danger Red</div>
+                    <div class="color-hex">#EF4444</div>
+                    <div class="color-rgb">rgb(239, 68, 68)</div>
+                    <div class="color-usage">Losses, errors, critical alerts</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Text Colors -->
+        <div class="section">
+            <h2 class="section-title">Text & Functional Colors</h2>
+            <div class="color-grid">
+                <div class="color-card">
+                    <div class="color-swatch" style="background-color: #F0F6FC;"></div>
+                    <div class="color-name">Text Primary</div>
+                    <div class="color-hex">#F0F6FC</div>
+                    <div class="color-rgb">rgb(240, 246, 252)</div>
+                    <div class="color-usage">Main text, high contrast</div>
+                </div>
+
+                <div class="color-card">
+                    <div class="color-swatch" style="background-color: #8B949E;"></div>
+                    <div class="color-name">Text Secondary</div>
+                    <div class="color-hex">#8B949E</div>
+                    <div class="color-rgb">rgb(139, 148, 158)</div>
+                    <div class="color-usage">Muted text, hints, captions</div>
+                </div>
+
+                <div class="color-card">
+                    <div class="color-swatch" style="background-color: #30363D;"></div>
+                    <div class="color-name">Border / Divider</div>
+                    <div class="color-hex">#30363D</div>
+                    <div class="color-rgb">rgb(48, 54, 61)</div>
+                    <div class="color-usage">Borders, lines, separators</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Semantic Usage -->
+        <div class="section">
+            <h2 class="section-title">Semantic Color Usage</h2>
+            <div class="semantic-grid">
+                <div class="semantic-item">
+                    <div class="semantic-color-bar" style="background: #10B981;"></div>
+                    <div class="semantic-name">Trading Profit / Win</div>
+                    <div class="semantic-usage">
+                        Positive P&L values, winning trades, trend indicators (↑), success messages
+                    </div>
+                    <div class="contrast-info">✓ WCAG AA compliant on dark background</div>
+                </div>
+
+                <div class="semantic-item">
+                    <div class="semantic-color-bar" style="background: #EF4444;"></div>
+                    <div class="semantic-name">Trading Loss / Error</div>
+                    <div class="semantic-usage">
+                        Negative P&L values, losing trades, trend indicators (↓), error states
+                    </div>
+                    <div class="contrast-info">✓ WCAG AA compliant on dark background</div>
+                </div>
+
+                <div class="semantic-item">
+                    <div class="semantic-color-bar" style="background: #FFB700;"></div>
+                    <div class="semantic-name">Alert / Warning</div>
+                    <div class="semantic-usage">
+                        Drawdown warnings, risk alerts, special emphasis, attention needed
+                    </div>
+                    <div class="contrast-info">✓ WCAG AA compliant on dark background</div>
+                </div>
+
+                <div class="semantic-item">
+                    <div class="semantic-color-bar" style="background: #00D9FF;"></div>
+                    <div class="semantic-name">Action / Focus</div>
+                    <div class="semantic-usage">
+                        Primary buttons, active tabs, focus rings, interactive elements, highlights
+                    </div>
+                    <div class="contrast-info">Use for high-emphasis UI</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Text Samples -->
+        <div class="section">
+            <h2 class="section-title">Text Color Samples</h2>
+            <div class="text-samples">
+                <div class="sample-group">
+                    <div class="sample-label">Primary Text</div>
+                    <div class="sample-text-primary">This is primary text — use for headings, body content, main information.</div>
+                </div>
+
+                <div class="sample-group">
+                    <div class="sample-label">Secondary Text</div>
+                    <div class="sample-text-secondary">This is secondary text — use for captions, hints, muted information.</div>
+                </div>
+
+                <div class="sample-group">
+                    <div class="sample-label">Trading States</div>
+                    <div class="sample-success">↑ Profit: +$1,234.56 (10.5% return)</div>
+                    <div class="sample-danger">↓ Loss: -$567.89 (−4.2% return)</div>
+                </div>
+
+                <div class="sample-group">
+                    <div class="sample-label">Interactive Elements</div>
+                    <div class="sample-primary">Primary Link or CTA Button</div>
+                    <div class="sample-accent">⚠ Alert Message or Warning</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Color Combinations -->
+        <div class="section">
+            <h2 class="section-title">Recommended Color Combinations</h2>
+            
+            <div class="palette-section">
+                <div class="palette-title">Light Mode (if implemented in future)</div>
+                <div class="text-samples">
+                    <p>Currently Trade-Claw uses Dark Mode only. Light mode is not yet designed.</p>
+                </div>
+            </div>
+
+            <div class="palette-section">
+                <div class="palette-title">Dark Mode (Current Standard)</div>
+                <div class="text-samples">
+                    <div class="sample-group">
+                        <div class="sample-label">Button: Primary (Default)</div>
+                        <p style="background: #00D9FF; color: #0D1117; padding: 12px; border-radius: 6px; text-align: center; font-weight: 700;">Click Me</p>
+                    </div>
+
+                    <div class="sample-group">
+                        <div class="sample-label">Button: Secondary (Outline)</div>
+                        <p style="background: transparent; color: #00D9FF; padding: 12px; border: 2px solid #00D9FF; border-radius: 6px; text-align: center; font-weight: 700;">Click Me</p>
+                    </div>
+
+                    <div class="sample-group">
+                        <div class="sample-label">Card with Primary Text</div>
+                        <div style="background: #161B22; color: #F0F6FC; padding: 20px; border: 1px solid #30363D; border-radius: 8px;">
+                            <strong>Card Title</strong><br>
+                            <span style="color: #8B949E;">Secondary text or description</span>
+                        </div>
+                    </div>
+
+                    <div class="sample-group">
+                        <div class="sample-label">Alert / Warning Box</div>
+                        <div style="background: rgba(255, 183, 0, 0.1); border-left: 4px solid #FFB700; padding: 16px; border-radius: 4px; color: #F0F6FC;">
+                            ⚠ <strong>Warning:</strong> Drawdown exceeds 10% threshold
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- CSS Implementation -->
+        <div class="section">
+            <h2 class="section-title">CSS Implementation</h2>
+            <div class="text-samples">
+                <p style="font-family: 'JetBrains Mono', monospace; font-size: 12px; line-height: 1.6; white-space: pre-wrap; word-wrap: break-word;">
+:root {
+  --color-dark: #0D1117;
+  --color-secondary: #161B22;
+  --color-primary: #00D9FF;
+  --color-accent: #FFB700;
+  --color-success: #10B981;
+  --color-danger: #EF4444;
+  --color-text-primary: #F0F6FC;
+  --color-text-secondary: #8B949E;
+  --color-border: #30363D;
+}
+
+/* Usage */
+body { background: var(--color-dark); }
+.button { background: var(--color-primary); }
+.profit { color: var(--color-success); }
+                </p>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <footer>
+            <p><strong>Trade-Claw Design System v1.0</strong></p>
+            <p>Last updated: 2026-04-23 | Created by: Erkan (UX/UI)</p>
+            <p>For questions or updates, contact: erkan@trade-claw.local</p>
+        </footer>
+    </div>
+</body>
+</html>
