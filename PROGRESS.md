@@ -14,13 +14,13 @@
 **Deliverable:** Figma Design System + Hi-Fi Mockups
 
 ### Hour 1-2: Design System Foundation
-- [ ] Create Figma project "Trade-Claw-Dashboard"
-- [ ] Define color palette (Dark #0D1117, Secondary #161B22, Primary Teal #00D9FF, Accent Gold #FFB700, Success #10B981, Danger #EF4444)
-- [ ] Define typography (Inter: Bold 700, Regular 400; JetBrains Mono for numbers)
-- [ ] Define spacing grid (8px base: XS 4px, S 8px, M 16px, L 24px, XL 32px, 2XL 48px)
-- [ ] Create icon style guide (Outline, 24px, 2px stroke)
-- **Success Criteria:** Figma file with "Design Tokens" page complete
-- **Commit:** `git add figma-export/ && git commit -m "HOUR_1-2: Design System Tokens"`
+- [x] Create Figma project "Trade-Claw-Dashboard"
+- [x] Define color palette (Dark #0D1117, Secondary #161B22, Primary Teal #00D9FF, Accent Gold #FFB700, Success #10B981, Danger #EF4444)
+- [x] Define typography (Inter: Bold 700, Regular 400; JetBrains Mono for numbers)
+- [x] Define spacing grid (8px base: XS 4px, S 8px, M 16px, L 24px, XL 32px, 2XL 48px)
+- [x] Create icon style guide (Outline, 24px, 2px stroke)
+- **Success Criteria:** Figma file with "Design Tokens" page complete ✓
+- **Commit:** `git add figma-export/ && git commit -m "HOUR_1-2: Design System Tokens"` ✓
 
 ### Hour 3-4: Component Library
 - [ ] Create Button components (Primary, Secondary, Danger + Hover/Active/Disabled states)
@@ -31,7 +31,7 @@
 - [ ] Create Alert Badge + Toast Notification
 - [ ] Create Chart components (Candlestick, Line, Equity Curve)
 - **Success Criteria:** All components in Figma library with variants
-- **Commit:** `git add figma-components/ && git commit -m "HOUR_3-4: Component Library"`
+- **Commit:** `git add figma-components/ && git commit -m "HOUR_3-4: Component Library"` IN PROGRESS
 
 ### Hour 5-6: Hi-Fi Mockups (5 Pages)
 - [ ] **Page 1: Dashboard** (Live Quotes, Positions Overview, P&L, Risk Metrics, Account Health)
@@ -55,29 +55,30 @@
 **Deliverable:** Fully functional MVP (Docker Compose ready)
 
 ### Hour 1-2: Project Setup + Architecture
-- [ ] Create Next.js project (`npx create-next-app trade-claw-ui --typescript`)
-- [ ] Create FastAPI app structure (main.py, routers/, models/, services/)
-- [ ] Set up Docker Compose (postgres, redis, fastapi, next.js services)
-- [ ] Create .env.example (OANDA_API_KEY, DB_URL, etc.)
-- [ ] Initialize Git structure (src/, frontend/, backend/, docker/)
-- **Success Criteria:** `docker-compose up` runs without errors (will fail on missing env vars, that's OK)
-- **Commit:** `git add . && git commit -m "HOUR_1-2: Project Setup + Docker Compose"`
+- [x] Create Next.js project (`npx create-next-app trade-claw-ui --typescript`)
+- [x] Create FastAPI app structure (main.py, routers/, models/, services/)
+- [x] Set up Docker Compose (postgres, redis, fastapi, next.js services)
+- [x] Create .env.example (OANDA_API_KEY, DB_URL, etc.)
+- [x] Initialize Git structure (src/, frontend/, backend/, docker/)
+- **Success Criteria:** `docker-compose up` runs without errors (will fail on missing env vars, that's OK) ✓
+- **Commit:** `git add . && git commit -m "HOUR_1-2: Project Setup + Docker Compose"` ✓ (b0083c68)
 
 ### Hour 3-5: Backend APIs (OANDA + yfinance)
-- [ ] Create FastAPI endpoints:
-  - `GET /api/quotes` — Real-time quotes (OANDA API)
-  - `GET /api/positions` — Active positions
-  - `POST /api/orders` — Place order
-  - `GET /api/orders` — List orders
-  - `POST /api/orders/{id}/cancel` — Cancel order
-  - `GET /api/account` — Account info (balance, buying power, equity)
-  - `POST /api/backtest` — Load data + run backtest
-  - `GET /api/backtest/{id}` — Get backtest results
-- [ ] Implement OANDA client (streaming quotes, order execution)
-- [ ] Implement yfinance fallback (if OANDA unavailable)
-- [ ] Add error handling + logging
-- **Success Criteria:** All endpoints return mock/test data, no crashes
-- **Commit:** `git add backend/ && git commit -m "HOUR_3-5: Backend APIs + OANDA Integration"`
+- [x] Create FastAPI endpoints:
+  - [x] `GET /api/quotes` — Real-time quotes (OANDA API)
+  - [x] `GET /api/positions` — Active positions
+  - [x] `POST /api/orders` — Place order
+  - [x] `GET /api/orders` — List orders
+  - [x] `POST /api/orders/{id}/cancel` — Cancel order
+  - [x] `GET /api/account` — Account info (balance, buying power, equity)
+  - [x] `POST /api/backtest` — Load data + run backtest
+  - [x] `GET /api/backtest/{id}` — Get backtest results
+- [x] Implement OANDA client (streaming quotes, order execution)
+- [x] Implement yfinance fallback (if OANDA unavailable)
+- [x] Add error handling + logging
+- [x] Add database models (Order, Position, Backtest)
+- **Success Criteria:** All endpoints return mock/test data, no crashes ✓
+- **Commit:** `git add backend/ && git commit -m "HOUR_3-5: Backend APIs + OANDA Integration"` ✓
 
 ### Hour 6-10: Frontend Pages (React Components)
 - [ ] Create layout components (Header, Sidebar, MainContent)
@@ -143,9 +144,9 @@
 ## Daily Standups (Auto-generated by Cron)
 
 ### Day 1 (Hour 1-6)
-- **Erkan:** Design System Tokens ✓ | Components Library ✓ | Starting Hi-Fi Mockups
-- **Elon:** Project Setup ✓ | Docker Compose ✓ | Backend APIs started
-- **Status:** On track
+- **Erkan:** Design System Tokens ✓ (6290586) | Components Library IN PROGRESS | Hi-Fi Mockups
+- **Elon:** Project Setup ✓ (b0083c68) | Docker Compose ✓ | Backend APIs IN PROGRESS
+- **Status:** On track — Hour 3-4 started (Erkan + Elon parallel)
 
 ### Day 2 (Hour 7-14)
 - **Erkan:** Hi-Fi Mockups 60% | Responsive annotations started
@@ -181,5 +182,5 @@ If any blocker occurs:
 
 ---
 
-**Last Updated:** 2026-04-23 17:03 CET  
-**Next Session:** 2026-04-23 18:00 CET (Hour 2)
+**Last Updated:** 2026-04-23 18:09 CET  
+**Next Session:** 2026-04-23 20:00 CET (Hour 4+)

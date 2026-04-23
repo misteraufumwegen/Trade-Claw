@@ -2,7 +2,11 @@
 Account API endpoints
 GET /account - Account information (balance, equity, margin)
 """
-from fastapi import APIRouter
+import logging
+from fastapi import APIRouter, HTTPException
+from app.services.oanda import oanda_client
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -14,19 +18,19 @@ async def get_account():
     Returns:
         Account summary with balance, equity, margin, P&L
     """
-    # Mock response - will be replaced with real OANDA data
-    return {
-        "account_id": "001-001-1234567-001",
-        "balance": 100000.00,
-        "equity": 100750.00,
-        "margin_used": 10000.00,
-        "margin_available": 90000.00,
-        "margin_rate": 0.05,
-        "unrealized_pnl": 750.00,
-        "realized_pnl": 0.00,
-        "total_pnl": 750.00,
-        "currency": "USD",
-        "last_transaction_id": "12345",
-        "timestamp": "2026-04-23T18:04:00Z",
-        "status": "ok"
-    }
+    try:
+        account = await oanda_client.get_account()
+        
+        # Add calculated fields if missing
+        if "status" not in account:
+            account["status"] = "ok"
+        
+        if "timestamp" not in account:
+            from datetime import datetime
+            account["timestamp"] = datetime.utcnow().isoformat() + "Z"
+        
+        return account
+    
+    except Exception as e:
+        logger.error(f"Account request failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Account request failed: {str(e)}")
