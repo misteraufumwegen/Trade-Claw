@@ -78,7 +78,7 @@
 - [x] Add error handling + logging
 - [x] Add database models (Order, Position, Backtest)
 - **Success Criteria:** All endpoints return mock/test data, no crashes ✓
-- **Commit:** `git add backend/ && git commit -m "HOUR_3-5: Backend APIs + OANDA Integration"` ✓
+- **Commit:** `git add backend/ && git commit -m "HOUR_3-5: Backend APIs + OANDA Integration"` ✓ (bcf616b)
 
 ### Hour 6-10: Frontend Pages (React Components)
 - [ ] Create layout components (Header, Sidebar, MainContent)
