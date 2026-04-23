@@ -1,0 +1,557 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trade-Claw Trading - Page 2</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --color-dark: #0D1117;
+            --color-secondary: #161B22;
+            --color-primary: #00D9FF;
+            --color-accent: #FFB700;
+            --color-success: #10B981;
+            --color-danger: #EF4444;
+            --color-text-primary: #F0F6FC;
+            --color-text-secondary: #8B949E;
+            --color-border: #30363D;
+            --spacing-xs: 4px;
+            --spacing-s: 8px;
+            --spacing-m: 16px;
+            --spacing-l: 24px;
+            --spacing-xl: 32px;
+            --spacing-2xl: 48px;
+            --radius-sm: 4px;
+            --radius-md: 8px;
+            --radius-lg: 12px;
+            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+
+        body {
+            background-color: var(--color-dark);
+            color: var(--color-text-primary);
+            font-family: Inter, sans-serif;
+            font-size: 16px;
+            line-height: 1.5;
+        }
+
+        .layout {
+            display: grid;
+            grid-template-columns: 240px 1fr;
+            min-height: 100vh;
+            gap: var(--spacing-m);
+            padding: var(--spacing-m);
+        }
+
+        .sidebar {
+            background-color: var(--color-secondary);
+            border-radius: var(--radius-md);
+            padding: var(--spacing-m);
+            height: fit-content;
+            position: sticky;
+            top: var(--spacing-m);
+        }
+
+        .sidebar-item {
+            padding: var(--spacing-m);
+            margin: var(--spacing-xs) 0;
+            cursor: pointer;
+            border-radius: var(--radius-sm);
+            color: var(--color-text-secondary);
+            transition: all 0.2s;
+        }
+
+        .sidebar-item.active {
+            background-color: var(--color-primary);
+            color: var(--color-dark);
+            font-weight: 700;
+        }
+
+        .main-content {
+            display: flex;
+            flex-direction: column;
+            gap: var(--spacing-xl);
+        }
+
+        .header {
+            background-color: var(--color-secondary);
+            padding: var(--spacing-l);
+            border-radius: var(--radius-md);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: var(--shadow-md);
+        }
+
+        .header-title {
+            font-size: 28px;
+            font-weight: 700;
+        }
+
+        .header-controls {
+            display: flex;
+            gap: var(--spacing-m);
+        }
+
+        .btn {
+            padding: var(--spacing-s) var(--spacing-m);
+            border: none;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s;
+            font-size: 14px;
+        }
+
+        .btn-primary {
+            background-color: var(--color-primary);
+            color: var(--color-dark);
+        }
+
+        .btn-danger {
+            background-color: var(--color-danger);
+            color: white;
+        }
+
+        .btn-secondary {
+            background-color: var(--color-secondary);
+            color: var(--color-text-primary);
+            border: 1px solid var(--color-border);
+        }
+
+        .grid-2col {
+            display: grid;
+            grid-template-columns: 1fr 2fr;
+            gap: var(--spacing-xl);
+        }
+
+        .card {
+            background-color: var(--color-secondary);
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-md);
+            padding: var(--spacing-l);
+            box-shadow: var(--shadow-md);
+        }
+
+        .card-header {
+            font-size: 12px;
+            color: var(--color-text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: var(--spacing-m);
+            font-weight: 600;
+        }
+
+        .form-group {
+            margin-bottom: var(--spacing-l);
+        }
+
+        .form-label {
+            display: block;
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: var(--spacing-s);
+        }
+
+        .form-input {
+            width: 100%;
+            padding: var(--spacing-s) var(--spacing-m);
+            background-color: var(--color-dark);
+            color: var(--color-text-primary);
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-sm);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: var(--color-primary);
+            box-shadow: 0 0 0 2px rgba(0, 217, 255, 0.1);
+        }
+
+        .form-select {
+            width: 100%;
+            padding: var(--spacing-s) var(--spacing-m);
+            background-color: var(--color-dark);
+            color: var(--color-text-primary);
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-sm);
+            font-size: 14px;
+            cursor: pointer;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: var(--spacing-m);
+        }
+
+        .btn-group {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: var(--spacing-m);
+        }
+
+        .btn-lg {
+            padding: var(--spacing-m) var(--spacing-l);
+            font-size: 16px;
+        }
+
+        .section-title {
+            font-size: 20px;
+            font-weight: 700;
+            margin-bottom: var(--spacing-m);
+        }
+
+        .table-container {
+            background-color: var(--color-secondary);
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-md);
+            overflow: hidden;
+            box-shadow: var(--shadow-md);
+        }
+
+        .table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .table th {
+            background-color: var(--color-dark);
+            padding: var(--spacing-m);
+            text-align: left;
+            font-size: 12px;
+            color: var(--color-text-secondary);
+            text-transform: uppercase;
+            border-bottom: 1px solid var(--color-border);
+            font-weight: 600;
+        }
+
+        .table td {
+            padding: var(--spacing-m);
+            border-bottom: 1px solid var(--color-border);
+            font-size: 14px;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .table tbody tr:hover {
+            background-color: rgba(0, 217, 255, 0.05);
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 10px;
+            font-weight: 600;
+        }
+
+        .badge-long {
+            background-color: rgba(16, 185, 129, 0.2);
+            color: var(--color-success);
+        }
+
+        .badge-short {
+            background-color: rgba(239, 68, 68, 0.2);
+            color: var(--color-danger);
+        }
+
+        .badge-pending {
+            background-color: rgba(255, 183, 0, 0.2);
+            color: var(--color-accent);
+        }
+
+        .chart-placeholder {
+            background-color: var(--color-dark);
+            border: 2px dashed var(--color-border);
+            border-radius: var(--radius-md);
+            padding: var(--spacing-2xl);
+            text-align: center;
+            color: var(--color-text-secondary);
+            font-size: 14px;
+        }
+
+        .responsive-note {
+            background-color: rgba(0, 217, 255, 0.1);
+            border-left: 4px solid var(--color-primary);
+            padding: var(--spacing-m);
+            margin-bottom: var(--spacing-l);
+            font-size: 12px;
+            color: var(--color-text-secondary);
+        }
+
+        /* Responsive Breakpoints */
+        @media (max-width: 1023px) {
+            .layout {
+                grid-template-columns: 1fr;
+            }
+
+            .grid-2col {
+                grid-template-columns: 1fr;
+            }
+
+            .sidebar {
+                position: relative;
+                display: grid;
+                grid-template-columns: repeat(3, 1fr);
+                height: auto;
+            }
+
+            .header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: var(--spacing-m);
+            }
+        }
+
+        @media (max-width: 767px) {
+            .layout {
+                padding: var(--spacing-s);
+                gap: var(--spacing-m);
+            }
+
+            .sidebar {
+                grid-template-columns: 1fr;
+            }
+
+            .header {
+                padding: var(--spacing-m);
+            }
+
+            .header-title {
+                font-size: 20px;
+            }
+
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+
+            .btn-group {
+                grid-template-columns: 1fr;
+            }
+
+            .table {
+                font-size: 12px;
+            }
+
+            .table td,
+            .table th {
+                padding: var(--spacing-s);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="layout">
+        <!-- Sidebar Navigation -->
+        <div class="sidebar">
+            <div class="sidebar-item">Dashboard</div>
+            <div class="sidebar-item active">Trading</div>
+            <div class="sidebar-item">Risk Management</div>
+            <div class="sidebar-item">Analytics</div>
+            <div class="sidebar-item">Settings</div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <!-- Header -->
+            <div class="header">
+                <div class="header-title">Trading</div>
+                <div class="header-controls">
+                    <button class="btn btn-secondary">Clear Form</button>
+                    <button class="btn btn-primary">Quick Trade</button>
+                </div>
+            </div>
+
+            <!-- Responsive Breakpoints Info -->
+            <div class="responsive-note">
+                📱 <strong>Responsive Breakpoints:</strong> 320px (mobile) | 768px (tablet) | 1024px (laptop) | 1920px (desktop)<br>
+                At 1024px: Order form moves above chart/tables. At 768px: All sections stack vertically.
+            </div>
+
+            <!-- Order Entry Form & Chart Section -->
+            <div class="grid-2col">
+                <!-- Order Entry Form (Left) -->
+                <div class="card">
+                    <div class="card-header">New Order</div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Symbol</label>
+                        <select class="form-select">
+                            <option>EUR/USD</option>
+                            <option>GBP/USD</option>
+                            <option>AUD/USD</option>
+                            <option>USD/JPY</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Order Type</label>
+                        <select class="form-select">
+                            <option>Market</option>
+                            <option>Limit</option>
+                            <option>Stop</option>
+                        </select>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Entry Price</label>
+                            <input type="text" class="form-input" placeholder="1.0950" value="1.0950">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Side</label>
+                            <select class="form-select">
+                                <option>Long</option>
+                                <option>Short</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Position Size (Units)</label>
+                        <input type="text" class="form-input" placeholder="10000" value="10000">
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Stop Loss</label>
+                            <input type="text" class="form-input" placeholder="1.0900">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Take Profit</label>
+                            <input type="text" class="form-input" placeholder="1.1050">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Risk Amount ($)</label>
+                        <input type="text" class="form-input" placeholder="500" value="500">
+                    </div>
+
+                    <div class="btn-group">
+                        <button class="btn btn-primary btn-lg">Place Order</button>
+                        <button class="btn btn-danger btn-lg">Cancel</button>
+                    </div>
+                </div>
+
+                <!-- Chart Section (Right) -->
+                <div class="card">
+                    <div class="card-header">EUR/USD Chart</div>
+                    <div class="chart-placeholder">
+                        📊 Candlestick Chart<br>
+                        <small>(TradingView Lightweight Charts)</small>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Active Orders -->
+            <div>
+                <div class="section-title">Active Orders</div>
+                <div class="table-container">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Symbol</th>
+                                <th>Type</th>
+                                <th>Side</th>
+                                <th>Entry Price</th>
+                                <th>Size</th>
+                                <th>Stop Loss</th>
+                                <th>Take Profit</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>EUR/USD</td>
+                                <td>Market</td>
+                                <td><span class="badge badge-long">LONG</span></td>
+                                <td>1.0950</td>
+                                <td>10,000</td>
+                                <td>1.0900</td>
+                                <td>1.1050</td>
+                                <td><span class="badge badge-pending">PENDING</span></td>
+                                <td><button class="btn btn-danger" style="padding: 4px 8px; font-size: 12px;">Cancel</button></td>
+                            </tr>
+                            <tr>
+                                <td>GBP/USD</td>
+                                <td>Limit</td>
+                                <td><span class="badge badge-short">SHORT</span></td>
+                                <td>1.2700</td>
+                                <td>5,000</td>
+                                <td>1.2800</td>
+                                <td>1.2500</td>
+                                <td><span class="badge badge-pending">PENDING</span></td>
+                                <td><button class="btn btn-danger" style="padding: 4px 8px; font-size: 12px;">Cancel</button></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Trade History -->
+            <div>
+                <div class="section-title">Trade History</div>
+                <div class="table-container">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Closed Time</th>
+                                <th>Symbol</th>
+                                <th>Side</th>
+                                <th>Entry</th>
+                                <th>Exit</th>
+                                <th>Size</th>
+                                <th>P&L</th>
+                                <th>R/R</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>2026-04-23 14:32</td>
+                                <td>EUR/USD</td>
+                                <td><span class="badge badge-long">LONG</span></td>
+                                <td>1.0900</td>
+                                <td>1.0950</td>
+                                <td>10,000</td>
+                                <td style="color: var(--color-success);">+$500</td>
+                                <td>1:2.5</td>
+                            </tr>
+                            <tr>
+                                <td>2026-04-23 12:15</td>
+                                <td>GBP/USD</td>
+                                <td><span class="badge badge-short">SHORT</span></td>
+                                <td>1.2800</td>
+                                <td>1.2700</td>
+                                <td>5,000</td>
+                                <td style="color: var(--color-success);">+$500</td>
+                                <td>1:3.0</td>
+                            </tr>
+                            <tr>
+                                <td>2026-04-23 10:45</td>
+                                <td>AUD/USD</td>
+                                <td><span class="badge badge-long">LONG</span></td>
+                                <td>0.6800</td>
+                                <td>0.6750</td>
+                                <td>10,000</td>
+                                <td style="color: var(--color-danger);">-$500</td>
+                                <td>1:1.5</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

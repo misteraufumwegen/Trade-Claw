@@ -1,0 +1,640 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trade-Claw Settings - Page 5</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --color-dark: #0D1117;
+            --color-secondary: #161B22;
+            --color-primary: #00D9FF;
+            --color-accent: #FFB700;
+            --color-success: #10B981;
+            --color-danger: #EF4444;
+            --color-text-primary: #F0F6FC;
+            --color-text-secondary: #8B949E;
+            --color-border: #30363D;
+            --spacing-xs: 4px;
+            --spacing-s: 8px;
+            --spacing-m: 16px;
+            --spacing-l: 24px;
+            --spacing-xl: 32px;
+            --spacing-2xl: 48px;
+            --radius-sm: 4px;
+            --radius-md: 8px;
+            --radius-lg: 12px;
+            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+
+        body {
+            background-color: var(--color-dark);
+            color: var(--color-text-primary);
+            font-family: Inter, sans-serif;
+            font-size: 16px;
+            line-height: 1.5;
+        }
+
+        .layout {
+            display: grid;
+            grid-template-columns: 240px 1fr;
+            min-height: 100vh;
+            gap: var(--spacing-m);
+            padding: var(--spacing-m);
+        }
+
+        .sidebar {
+            background-color: var(--color-secondary);
+            border-radius: var(--radius-md);
+            padding: var(--spacing-m);
+            height: fit-content;
+            position: sticky;
+            top: var(--spacing-m);
+        }
+
+        .sidebar-item {
+            padding: var(--spacing-m);
+            margin: var(--spacing-xs) 0;
+            cursor: pointer;
+            border-radius: var(--radius-sm);
+            color: var(--color-text-secondary);
+            transition: all 0.2s;
+        }
+
+        .sidebar-item.active {
+            background-color: var(--color-primary);
+            color: var(--color-dark);
+            font-weight: 700;
+        }
+
+        .main-content {
+            display: flex;
+            flex-direction: column;
+            gap: var(--spacing-xl);
+        }
+
+        .header {
+            background-color: var(--color-secondary);
+            padding: var(--spacing-l);
+            border-radius: var(--radius-md);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: var(--shadow-md);
+        }
+
+        .header-title {
+            font-size: 28px;
+            font-weight: 700;
+        }
+
+        .header-controls {
+            display: flex;
+            gap: var(--spacing-m);
+        }
+
+        .btn {
+            padding: var(--spacing-s) var(--spacing-m);
+            border: none;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s;
+            font-size: 14px;
+        }
+
+        .btn-primary {
+            background-color: var(--color-primary);
+            color: var(--color-dark);
+        }
+
+        .btn-secondary {
+            background-color: var(--color-secondary);
+            color: var(--color-text-primary);
+            border: 1px solid var(--color-border);
+        }
+
+        .btn-danger {
+            background-color: var(--color-danger);
+            color: white;
+        }
+
+        .card {
+            background-color: var(--color-secondary);
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-md);
+            padding: var(--spacing-l);
+            box-shadow: var(--shadow-md);
+        }
+
+        .section-title {
+            font-size: 18px;
+            font-weight: 700;
+            margin-bottom: var(--spacing-m);
+        }
+
+        .form-group {
+            margin-bottom: var(--spacing-l);
+        }
+
+        .form-label {
+            display: block;
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: var(--spacing-s);
+        }
+
+        .form-description {
+            font-size: 12px;
+            color: var(--color-text-secondary);
+            margin-top: 4px;
+        }
+
+        .form-input,
+        .form-select {
+            width: 100%;
+            padding: var(--spacing-s) var(--spacing-m);
+            background-color: var(--color-dark);
+            color: var(--color-text-primary);
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-sm);
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+
+        .form-input:focus,
+        .form-select:focus {
+            outline: none;
+            border-color: var(--color-primary);
+            box-shadow: 0 0 0 2px rgba(0, 217, 255, 0.1);
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: var(--spacing-m);
+        }
+
+        .slider-container {
+            display: flex;
+            flex-direction: column;
+            gap: var(--spacing-m);
+        }
+
+        .slider-label {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: var(--spacing-s);
+        }
+
+        .slider-value {
+            background-color: var(--color-dark);
+            padding: 2px 8px;
+            border-radius: var(--radius-sm);
+            font-weight: 600;
+            font-family: 'JetBrains Mono', monospace;
+            color: var(--color-primary);
+        }
+
+        .slider {
+            width: 100%;
+            height: 6px;
+            background: linear-gradient(to right, var(--color-success), var(--color-accent), var(--color-danger));
+            border-radius: 3px;
+            outline: none;
+            -webkit-appearance: none;
+            appearance: none;
+        }
+
+        .slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            background-color: var(--color-primary);
+            border-radius: 50%;
+            cursor: pointer;
+            border: 2px solid var(--color-secondary);
+        }
+
+        .slider::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            background-color: var(--color-primary);
+            border-radius: 50%;
+            cursor: pointer;
+            border: 2px solid var(--color-secondary);
+        }
+
+        .toggle {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-m);
+            padding: var(--spacing-m);
+            background-color: var(--color-dark);
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--color-border);
+        }
+
+        .toggle-switch {
+            width: 50px;
+            height: 26px;
+            background-color: var(--color-border);
+            border-radius: 13px;
+            position: relative;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .toggle-switch.active {
+            background-color: var(--color-primary);
+        }
+
+        .toggle-switch::after {
+            content: '';
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            background-color: white;
+            border-radius: 50%;
+            top: 3px;
+            left: 3px;
+            transition: all 0.3s;
+        }
+
+        .toggle-switch.active::after {
+            left: 27px;
+        }
+
+        .toggle-label {
+            flex: 1;
+        }
+
+        .btn-group {
+            display: flex;
+            gap: var(--spacing-m);
+            justify-content: flex-end;
+        }
+
+        .btn-lg {
+            padding: var(--spacing-m) var(--spacing-l);
+            font-size: 16px;
+        }
+
+        .divider {
+            border-bottom: 1px solid var(--color-border);
+            margin: var(--spacing-l) 0;
+        }
+
+        .alert {
+            padding: var(--spacing-m);
+            border-radius: var(--radius-md);
+            border-left: 4px solid;
+            margin-bottom: var(--spacing-m);
+        }
+
+        .alert-info {
+            background-color: rgba(0, 217, 255, 0.1);
+            border-left-color: var(--color-primary);
+            color: var(--color-text-primary);
+        }
+
+        .alert-warning {
+            background-color: rgba(255, 183, 0, 0.1);
+            border-left-color: var(--color-accent);
+            color: var(--color-text-primary);
+        }
+
+        .responsive-note {
+            background-color: rgba(0, 217, 255, 0.1);
+            border-left: 4px solid var(--color-primary);
+            padding: var(--spacing-m);
+            margin-bottom: var(--spacing-l);
+            font-size: 12px;
+            color: var(--color-text-secondary);
+        }
+
+        /* Responsive Breakpoints */
+        @media (max-width: 1023px) {
+            .layout {
+                grid-template-columns: 1fr;
+            }
+
+            .sidebar {
+                position: relative;
+                display: grid;
+                grid-template-columns: repeat(3, 1fr);
+                height: auto;
+            }
+
+            .header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: var(--spacing-m);
+            }
+
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 767px) {
+            .layout {
+                padding: var(--spacing-s);
+                gap: var(--spacing-m);
+            }
+
+            .sidebar {
+                grid-template-columns: 1fr;
+            }
+
+            .header {
+                padding: var(--spacing-m);
+            }
+
+            .header-title {
+                font-size: 20px;
+            }
+
+            .btn-group {
+                flex-direction: column;
+            }
+
+            .btn-lg {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="layout">
+        <!-- Sidebar Navigation -->
+        <div class="sidebar">
+            <div class="sidebar-item">Dashboard</div>
+            <div class="sidebar-item">Trading</div>
+            <div class="sidebar-item">Risk Management</div>
+            <div class="sidebar-item">Analytics</div>
+            <div class="sidebar-item active">Settings</div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <!-- Header -->
+            <div class="header">
+                <div class="header-title">Settings</div>
+                <div class="header-controls">
+                    <button class="btn btn-secondary">Reset Defaults</button>
+                    <button class="btn btn-primary">Save Changes</button>
+                </div>
+            </div>
+
+            <!-- Responsive Breakpoints Info -->
+            <div class="responsive-note">
+                📱 <strong>Responsive Breakpoints:</strong> 320px (mobile) | 768px (tablet) | 1024px (laptop) | 1920px (desktop)<br>
+                At 1024px: Form rows become single-column. At 768px: Buttons stack vertically.
+            </div>
+
+            <!-- OANDA Configuration -->
+            <div class="card">
+                <div class="section-title">OANDA API Configuration</div>
+                <div class="alert alert-info">
+                    ℹ️ Enter your OANDA credentials to connect your trading account. API key is encrypted and never stored in plain text.
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Account Type</label>
+                    <select class="form-select">
+                        <option>Demo Account</option>
+                        <option>Live Account</option>
+                    </select>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Account ID</label>
+                        <input type="text" class="form-input" placeholder="123456789" value="123456789">
+                        <div class="form-description">Your unique OANDA account identifier</div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">API Key</label>
+                        <input type="password" class="form-input" placeholder="●●●●●●●●●●●●●●●●" value="●●●●●●●●●●●●●●●●">
+                        <div class="form-description"><a href="#" style="color: var(--color-primary);">Generate new key</a></div>
+                    </div>
+                </div>
+
+                <div class="toggle" style="margin-bottom: var(--spacing-l);">
+                    <div class="toggle-switch active" onclick="this.classList.toggle('active')"></div>
+                    <div class="toggle-label">
+                        <div style="font-weight: 600;">Paper Trading</div>
+                        <div style="font-size: 12px; color: var(--color-text-secondary);">Run in demo mode to test without real money</div>
+                    </div>
+                </div>
+
+                <button class="btn btn-secondary" style="padding: var(--spacing-s) var(--spacing-m);">Test Connection</button>
+            </div>
+
+            <!-- Risk Limits -->
+            <div class="card">
+                <div class="section-title">Risk Management Settings</div>
+                <div class="alert alert-warning">
+                    ⚠️ Risk limits protect your account from large losses. These limits are enforced by the trading engine.
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Daily Risk Limit (%)</label>
+                    <div class="slider-container">
+                        <div class="slider-label">
+                            <span>Maximum loss per day</span>
+                            <span class="slider-value">5%</span>
+                        </div>
+                        <input type="range" min="0" max="20" value="5" class="slider">
+                        <div class="form-description">Trading stops when daily loss reaches this percentage of account balance</div>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Maximum Drawdown (%)</label>
+                    <div class="slider-container">
+                        <div class="slider-label">
+                            <span>Highest peak-to-trough decline</span>
+                            <span class="slider-value">15%</span>
+                        </div>
+                        <input type="range" min="0" max="50" value="15" class="slider">
+                        <div class="form-description">Account is halted if drawdown exceeds this threshold</div>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Max Risk per Trade (%)</label>
+                    <div class="slider-container">
+                        <div class="slider-label">
+                            <span>Risk on each position</span>
+                            <span class="slider-value">2%</span>
+                        </div>
+                        <input type="range" min="0.1" max="10" step="0.1" value="2" class="slider">
+                        <div class="form-description">Risk/Reward must be ≥ 1:3 (enforced)</div>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Min Win Rate for Trading (%)</label>
+                        <input type="number" class="form-input" placeholder="40" value="40" min="0" max="100">
+                        <div class="form-description">Pause if recent win rate falls below this</div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Consecutive Loss Limit</label>
+                        <input type="number" class="form-input" placeholder="3" value="3" min="1" max="20">
+                        <div class="form-description">Stop trading after N consecutive losses</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Strategy Settings -->
+            <div class="card">
+                <div class="section-title">Strategy Configuration</div>
+
+                <div class="form-group">
+                    <label class="form-label">Active Strategy</label>
+                    <select class="form-select">
+                        <option>Default Trend Following</option>
+                        <option>Momentum Breakout</option>
+                        <option>Mean Reversion</option>
+                        <option>Custom Strategy</option>
+                    </select>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Timeframe</label>
+                        <select class="form-select">
+                            <option>1H (1 Hour)</option>
+                            <option>4H (4 Hours)</option>
+                            <option>1D (1 Day)</option>
+                            <option>1W (1 Week)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Max Open Positions</label>
+                        <input type="number" class="form-input" placeholder="5" value="5" min="1" max="20">
+                    </div>
+                </div>
+
+                <div class="toggle" style="margin-bottom: var(--spacing-l);">
+                    <div class="toggle-switch active" onclick="this.classList.toggle('active')"></div>
+                    <div class="toggle-label">
+                        <div style="font-weight: 600;">Auto-Trading Enabled</div>
+                        <div style="font-size: 12px; color: var(--color-text-secondary);">Execute trades automatically when conditions are met</div>
+                    </div>
+                </div>
+
+                <div class="toggle" style="margin-bottom: var(--spacing-l);">
+                    <div class="toggle-switch" onclick="this.classList.toggle('active')"></div>
+                    <div class="toggle-label">
+                        <div style="font-weight: 600;">Stop Loss Enforcement</div>
+                        <div style="font-size: 12px; color: var(--color-text-secondary);">Automatically close positions at stop loss level</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Data Source Configuration -->
+            <div class="card">
+                <div class="section-title">Data Source Configuration</div>
+
+                <div class="form-group">
+                    <label class="form-label">Primary Quote Provider</label>
+                    <select class="form-select">
+                        <option>OANDA API (Primary)</option>
+                        <option>yfinance (Fallback)</option>
+                        <option>Alpha Vantage</option>
+                    </select>
+                    <div class="form-description">Used for real-time quote updates and order execution</div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Historical Data Source</label>
+                    <select class="form-select">
+                        <option>OANDA (Best for FX)</option>
+                        <option>yfinance (Stocks/Crypto)</option>
+                        <option>IB (Interactive Brokers)</option>
+                    </select>
+                    <div class="form-description">Used for backtesting and analysis</div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Quote Update Frequency</label>
+                        <select class="form-select">
+                            <option>Tick (Real-time)</option>
+                            <option>1 Second</option>
+                            <option>5 Seconds</option>
+                            <option>1 Minute</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Backtest Data Period</label>
+                        <select class="form-select">
+                            <option>1 Year</option>
+                            <option>2 Years</option>
+                            <option>5 Years</option>
+                            <option>All Available</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="toggle">
+                    <div class="toggle-switch active" onclick="this.classList.toggle('active')"></div>
+                    <div class="toggle-label">
+                        <div style="font-weight: 600;">Cache Historical Data</div>
+                        <div style="font-size: 12px; color: var(--color-text-secondary);">Store data locally for faster backtests</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Advanced Settings -->
+            <div class="card">
+                <div class="section-title">Advanced Settings</div>
+
+                <div class="toggle" style="margin-bottom: var(--spacing-l);">
+                    <div class="toggle-switch active" onclick="this.classList.toggle('active')"></div>
+                    <div class="toggle-label">
+                        <div style="font-weight: 600;">Enable Logging</div>
+                        <div style="font-size: 12px; color: var(--color-text-secondary);">Record all trades and system events to file</div>
+                    </div>
+                </div>
+
+                <div class="toggle" style="margin-bottom: var(--spacing-l);">
+                    <div class="toggle-switch" onclick="this.classList.toggle('active')"></div>
+                    <div class="toggle-label">
+                        <div style="font-weight: 600;">Email Notifications</div>
+                        <div style="font-size: 12px; color: var(--color-text-secondary);">Send alerts when large trades or losses occur</div>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Export Account History</label>
+                    <button class="btn btn-secondary" style="padding: var(--spacing-s) var(--spacing-m);">Download CSV</button>
+                    <div class="form-description">Export all trades, positions, and performance history</div>
+                </div>
+
+                <div class="divider"></div>
+
+                <button class="btn btn-danger" style="padding: var(--spacing-s) var(--spacing-m);">Reset All Settings to Default</button>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="btn-group">
+                <button class="btn btn-secondary btn-lg">Cancel</button>
+                <button class="btn btn-primary btn-lg">Save All Changes</button>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

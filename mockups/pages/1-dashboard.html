@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trade-Claw Dashboard - Page 1</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --color-dark: #0D1117;
+            --color-secondary: #161B22;
+            --color-primary: #00D9FF;
+            --color-accent: #FFB700;
+            --color-success: #10B981;
+            --color-danger: #EF4444;
+            --color-text-primary: #F0F6FC;
+            --color-text-secondary: #8B949E;
+            --color-border: #30363D;
+            --spacing-xs: 4px;
+            --spacing-s: 8px;
+            --spacing-m: 16px;
+            --spacing-l: 24px;
+            --spacing-xl: 32px;
+            --spacing-2xl: 48px;
+            --radius-sm: 4px;
+            --radius-md: 8px;
+            --radius-lg: 12px;
+            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+
+        body {
+            background-color: var(--color-dark);
+            color: var(--color-text-primary);
+            font-family: Inter, sans-serif;
+            font-size: 16px;
+            line-height: 1.5;
+        }
+
+        .layout {
+            display: grid;
+            grid-template-columns: 240px 1fr;
+            min-height: 100vh;
+            gap: var(--spacing-m);
+            padding: var(--spacing-m);
+        }
+
+        .sidebar {
+            background-color: var(--color-secondary);
+            border-radius: var(--radius-md);
+            padding: var(--spacing-m);
+            height: fit-content;
+            position: sticky;
+            top: var(--spacing-m);
+        }
+
+        .sidebar-item {
+            padding: var(--spacing-m);
+            margin: var(--spacing-xs) 0;
+            cursor: pointer;
+            border-radius: var(--radius-sm);
+            color: var(--color-text-secondary);
+            transition: all 0.2s;
+        }
+
+        .sidebar-item.active {
+            background-color: var(--color-primary);
+            color: var(--color-dark);
+            font-weight: 700;
+        }
+
+        .main-content {
+            display: flex;
+            flex-direction: column;
+            gap: var(--spacing-xl);
+        }
+
+        .header {
+            background-color: var(--color-secondary);
+            padding: var(--spacing-l);
+            border-radius: var(--radius-md);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: var(--shadow-md);
+        }
+
+        .header-title {
+            font-size: 28px;
+            font-weight: 700;
+        }
+
+        .header-controls {
+            display: flex;
+            gap: var(--spacing-m);
+        }
+
+        .btn {
+            padding: var(--spacing-s) var(--spacing-m);
+            border: none;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s;
+            font-size: 14px;
+        }
+
+        .btn-primary {
+            background-color: var(--color-primary);
+            color: var(--color-dark);
+        }
+
+        .btn-primary:hover {
+            opacity: 0.9;
+        }
+
+        .btn-secondary {
+            background-color: var(--color-secondary);
+            color: var(--color-text-primary);
+            border: 1px solid var(--color-border);
+        }
+
+        .grid-2col {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: var(--spacing-l);
+        }
+
+        .grid-3col {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: var(--spacing-l);
+        }
+
+        .card {
+            background-color: var(--color-secondary);
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-md);
+            padding: var(--spacing-l);
+            box-shadow: var(--shadow-md);
+        }
+
+        .card-header {
+            font-size: 12px;
+            color: var(--color-text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: var(--spacing-m);
+        }
+
+        .card-value {
+            font-size: 32px;
+            font-weight: 700;
+            font-family: 'JetBrains Mono', monospace;
+            margin-bottom: var(--spacing-s);
+        }
+
+        .card-subtitle {
+            font-size: 14px;
+            color: var(--color-text-secondary);
+        }
+
+        .positive {
+            color: var(--color-success);
+        }
+
+        .negative {
+            color: var(--color-danger);
+        }
+
+        .neutral {
+            color: var(--color-accent);
+        }
+
+        .positions-section {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: var(--spacing-l);
+        }
+
+        .position-card {
+            background-color: var(--color-secondary);
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-md);
+            padding: var(--spacing-l);
+            box-shadow: var(--shadow-md);
+        }
+
+        .position-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: var(--spacing-m);
+        }
+
+        .symbol {
+            font-size: 18px;
+            font-weight: 700;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .badge {
+            font-size: 10px;
+            padding: 2px 8px;
+            border-radius: 4px;
+            background-color: var(--color-primary);
+            color: var(--color-dark);
+            font-weight: 600;
+        }
+
+        .position-detail {
+            margin-bottom: var(--spacing-m);
+            font-size: 14px;
+        }
+
+        .position-label {
+            color: var(--color-text-secondary);
+            margin-bottom: 2px;
+        }
+
+        .position-value {
+            font-weight: 600;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 16px;
+        }
+
+        .table-container {
+            background-color: var(--color-secondary);
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-md);
+            overflow: hidden;
+            box-shadow: var(--shadow-md);
+        }
+
+        .table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .table th {
+            background-color: var(--color-dark);
+            padding: var(--spacing-m);
+            text-align: left;
+            font-size: 12px;
+            color: var(--color-text-secondary);
+            text-transform: uppercase;
+            border-bottom: 1px solid var(--color-border);
+            font-weight: 600;
+        }
+
+        .table td {
+            padding: var(--spacing-m);
+            border-bottom: 1px solid var(--color-border);
+            font-size: 14px;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .table tbody tr:hover {
+            background-color: rgba(0, 217, 255, 0.05);
+        }
+
+        .section-title {
+            font-size: 20px;
+            font-weight: 700;
+            margin-bottom: var(--spacing-m);
+        }
+
+        .responsive-note {
+            background-color: rgba(0, 217, 255, 0.1);
+            border-left: 4px solid var(--color-primary);
+            padding: var(--spacing-m);
+            margin-bottom: var(--spacing-l);
+            font-size: 12px;
+            color: var(--color-text-secondary);
+        }
+
+        /* Responsive Breakpoints */
+        @media (max-width: 1919px) {
+            .positions-section {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+
+        @media (max-width: 1023px) {
+            .layout {
+                grid-template-columns: 1fr;
+                gap: var(--spacing-m);
+            }
+
+            .sidebar {
+                position: relative;
+                display: grid;
+                grid-template-columns: repeat(3, 1fr);
+                height: auto;
+            }
+
+            .grid-2col,
+            .grid-3col {
+                grid-template-columns: 1fr;
+            }
+
+            .positions-section {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: var(--spacing-m);
+            }
+        }
+
+        @media (max-width: 767px) {
+            .layout {
+                padding: var(--spacing-s);
+                gap: var(--spacing-m);
+            }
+
+            .sidebar {
+                grid-template-columns: 1fr;
+            }
+
+            .header {
+                padding: var(--spacing-m);
+            }
+
+            .header-title {
+                font-size: 20px;
+            }
+
+            .card-value {
+                font-size: 24px;
+            }
+
+            .positions-section {
+                grid-template-columns: 1fr;
+            }
+
+            .table {
+                font-size: 12px;
+            }
+
+            .table td,
+            .table th {
+                padding: var(--spacing-s);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="layout">
+        <!-- Sidebar Navigation -->
+        <div class="sidebar">
+            <div class="sidebar-item active">Dashboard</div>
+            <div class="sidebar-item">Trading</div>
+            <div class="sidebar-item">Risk Management</div>
+            <div class="sidebar-item">Analytics</div>
+            <div class="sidebar-item">Settings</div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <!-- Header -->
+            <div class="header">
+                <div class="header-title">Dashboard</div>
+                <div class="header-controls">
+                    <button class="btn btn-secondary">Refresh</button>
+                    <button class="btn btn-primary">Settings</button>
+                </div>
+            </div>
+
+            <!-- Responsive Breakpoints Info -->
+            <div class="responsive-note">
+                📱 <strong>Responsive Breakpoints:</strong> 320px (mobile) | 768px (tablet) | 1024px (laptop) | 1920px (desktop)<br>
+                At 1024px: Sidebar moves to horizontal layout. At 768px: Cards stack, positions 1-column.
+            </div>
+
+            <!-- Account Health Cards (4 columns on desktop) -->
+            <div class="grid-2col">
+                <div class="card">
+                    <div class="card-header">Account Balance</div>
+                    <div class="card-value">$50,000.00</div>
+                    <div class="card-subtitle">Starting capital</div>
+                </div>
+                <div class="card">
+                    <div class="card-header">Equity</div>
+                    <div class="card-value">$52,500.00</div>
+                    <div class="card-subtitle positive">+$2,500 (+5.0%)</div>
+                </div>
+            </div>
+
+            <div class="grid-3col">
+                <div class="card">
+                    <div class="card-header">Available Margin</div>
+                    <div class="card-value positive">$35,000</div>
+                    <div class="card-subtitle">Ready to trade</div>
+                </div>
+                <div class="card">
+                    <div class="card-header">Margin Used</div>
+                    <div class="card-value">$15,000</div>
+                    <div class="card-subtitle">30% of balance</div>
+                </div>
+                <div class="card">
+                    <div class="card-header">Risk Remaining</div>
+                    <div class="card-value positive">$2,500</div>
+                    <div class="card-subtitle">5% daily risk left</div>
+                </div>
+            </div>
+
+            <!-- Active Positions Section -->
+            <div>
+                <div class="section-title">Active Positions</div>
+                <div class="positions-section">
+                    <div class="position-card">
+                        <div class="position-header">
+                            <div class="symbol">EUR/USD</div>
+                            <div class="badge">LONG</div>
+                        </div>
+                        <div class="position-detail">
+                            <div class="position-label">Entry</div>
+                            <div class="position-value">1.0920</div>
+                        </div>
+                        <div class="position-detail">
+                            <div class="position-label">Current</div>
+                            <div class="position-value">1.0950</div>
+                        </div>
+                        <div class="position-detail">
+                            <div class="position-label">P&L</div>
+                            <div class="position-value positive">+$300</div>
+                        </div>
+                        <div class="position-detail">
+                            <div class="position-label">Size</div>
+                            <div class="position-value">10,000 units</div>
+                        </div>
+                    </div>
+
+                    <div class="position-card">
+                        <div class="position-header">
+                            <div class="symbol">GBP/USD</div>
+                            <div class="badge" style="background-color: var(--color-danger); color: white;">SHORT</div>
+                        </div>
+                        <div class="position-detail">
+                            <div class="position-label">Entry</div>
+                            <div class="position-value">1.2750</div>
+                        </div>
+                        <div class="position-detail">
+                            <div class="position-label">Current</div>
+                            <div class="position-value">1.2700</div>
+                        </div>
+                        <div class="position-detail">
+                            <div class="position-label">P&L</div>
+                            <div class="position-value positive">+$500</div>
+                        </div>
+                        <div class="position-detail">
+                            <div class="position-label">Size</div>
+                            <div class="position-value">5,000 units</div>
+                        </div>
+                    </div>
+
+                    <div class="position-card">
+                        <div class="position-header">
+                            <div class="symbol">AUD/USD</div>
+                            <div class="badge">LONG</div>
+                        </div>
+                        <div class="position-detail">
+                            <div class="position-label">Entry</div>
+                            <div class="position-value">0.6750</div>
+                        </div>
+                        <div class="position-detail">
+                            <div class="position-label">Current</div>
+                            <div class="position-value">0.6720</div>
+                        </div>
+                        <div class="position-detail">
+                            <div class="position-label">P&L</div>
+                            <div class="position-value negative">-$150</div>
+                        </div>
+                        <div class="position-detail">
+                            <div class="position-label">Size</div>
+                            <div class="position-value">10,000 units</div>
+                        </div>
+                    </div>
+
+                    <div class="position-card">
+                        <div class="position-header">
+                            <div class="symbol">USD/JPY</div>
+                            <div class="badge">LONG</div>
+                        </div>
+                        <div class="position-detail">
+                            <div class="position-label">Entry</div>
+                            <div class="position-value">149.50</div>
+                        </div>
+                        <div class="position-detail">
+                            <div class="position-label">Current</div>
+                            <div class="position-value">150.20</div>
+                        </div>
+                        <div class="position-detail">
+                            <div class="position-label">P&L</div>
+                            <div class="position-value positive">+$700</div>
+                        </div>
+                        <div class="position-detail">
+                            <div class="position-label">Size</div>
+                            <div class="position-value">1,000 units</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recent Trades Table -->
+            <div>
+                <div class="section-title">Recent Trades</div>
+                <div class="table-container">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Time</th>
+                                <th>Symbol</th>
+                                <th>Type</th>
+                                <th>Entry</th>
+                                <th>Exit</th>
+                                <th>Size</th>
+                                <th>P&L</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>14:32:05</td>
+                                <td>EUR/USD</td>
+                                <td>LONG</td>
+                                <td>1.0900</td>
+                                <td>1.0950</td>
+                                <td>10,000</td>
+                                <td style="color: var(--color-success);">+$500</td>
+                            </tr>
+                            <tr>
+                                <td>12:15:22</td>
+                                <td>GBP/USD</td>
+                                <td>SHORT</td>
+                                <td>1.2800</td>
+                                <td>1.2700</td>
+                                <td>5,000</td>
+                                <td style="color: var(--color-success);">+$500</td>
+                            </tr>
+                            <tr>
+                                <td>10:45:30</td>
+                                <td>AUD/USD</td>
+                                <td>LONG</td>
+                                <td>0.6800</td>
+                                <td>0.6750</td>
+                                <td>10,000</td>
+                                <td style="color: var(--color-danger);">-$500</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
