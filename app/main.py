@@ -3,6 +3,11 @@
 from __future__ import annotations
 
 import os
+
+# Load .env file before anything else reads environment variables.
+from dotenv import load_dotenv
+
+load_dotenv()
 from datetime import datetime
 from decimal import Decimal
 
@@ -57,7 +62,7 @@ def _build_vault_master_key() -> bytes:
     import base64
     import hashlib
 
-    raw = os.environb.get(b"ENCRYPTION_KEY") or os.getenv("ENCRYPTION_KEY", "").encode()
+    raw = os.getenv("ENCRYPTION_KEY", "").encode()
     # Fernet requires exactly 32 URL-safe-base64-encoded bytes (44 chars).
     derived = hashlib.sha256(raw).digest()  # always 32 bytes
     return base64.urlsafe_b64encode(derived)  # 44-char Fernet key

@@ -61,7 +61,7 @@ class TradesDataset(Dataset):
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
         
-        # Feature columns (25 total)
+        # Feature columns (20 total — matching SetupQualityScorer input_size)
         feature_cols = [
             'f_structural_level', 'f_liquidity_sweep', 'f_momentum', 'f_volume',
             'f_risk_reward', 'f_macro_alignment', 'f_on_chain',
@@ -275,7 +275,7 @@ class FeatureExtractor:
                 stop_loss REAL,
                 take_profit REAL,
                 
-                -- Features (20 normalized 0-1)
+                -- Features (20 normalized 0-1, matching SetupQualityScorer)
                 f_structural_level REAL,
                 f_liquidity_sweep REAL,
                 f_momentum REAL,

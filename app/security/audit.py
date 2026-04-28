@@ -15,7 +15,7 @@ import hashlib
 import json
 import logging
 from dataclasses import asdict, dataclass
-from datetime import datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -115,7 +115,7 @@ class AuditLog:
         """
 
         entry = AuditEntry(
-            timestamp=datetime.utcnow(),
+            timestamp=datetime.now(UTC),
             action=action,
             user_id=user_id,
             session_id=session_id,
@@ -204,7 +204,7 @@ class AuditLog:
             events = self.get_for_user(user_id) if user_id else self.memory_events
 
             data = {
-                "exported_at": datetime.utcnow().isoformat(),
+                "exported_at": datetime.now(UTC).isoformat(),
                 "user_id": user_id,
                 "event_count": len(events),
                 "integrity": integrity,  # {"valid": bool, "checked": int, ...}
@@ -265,7 +265,7 @@ class AuditLog:
 
     def _get_log_file(self) -> Path:
         """Get current log file (daily rotation)"""
-        today = datetime.utcnow().strftime("%Y-%m-%d")
+        today = datetime.now(UTC).strftime("%Y-%m-%d")
         return self.log_dir / f"audit_{today}.jsonl"
 
 
@@ -277,7 +277,7 @@ class AuditSummary:
         """Count events by action in last N hours"""
         from datetime import timedelta
 
-        cutoff = datetime.utcnow() - timedelta(hours=hours)
+        cutoff = datetime.now(UTC) - timedelta(hours=hours)
         events = [e for e in audit_log.memory_events if e.timestamp >= cutoff]
 
         summary = {}
@@ -310,7 +310,7 @@ class AuditSummary:
 
         return {
             "user_id": user_id,
-            "period": f"{events[0].timestamp.isoformat() if events else 'N/A'} - {datetime.utcnow().isoformat()}",
+            "period": f"{events[0].timestamp.isoformat() if events else 'N/A'} - {datetime.now(UTC).isoformat()}",
             "total_events": len(events),
             "orders_submitted": len([e for e in events if e.action == "ORDER_SUBMITTED"]),
             "orders_filled": len([e for e in events if e.action == "ORDER_FILLED"]),

@@ -184,11 +184,11 @@ class GraderEngine:
         # Validate R/R ratio
         if direction == "LONG":
             risk = entry_price - stop_loss_price
-            tp1_price - entry_price
+            reward1 = tp1_price - entry_price
             reward2 = tp2_price - entry_price
         else:  # SHORT
             risk = stop_loss_price - entry_price
-            entry_price - tp1_price
+            reward1 = entry_price - tp1_price
             reward2 = entry_price - tp2_price
 
         # Check if 1:3 R/R is met

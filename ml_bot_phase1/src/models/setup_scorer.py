@@ -19,19 +19,28 @@ logger = logging.getLogger(__name__)
 class SetupQualityScorer(nn.Module):
     """
     Feedforward neural network for predicting trade setup quality.
-    
+
     Architecture:
-    - Input: 25 normalized features [0, 1]
+    - Input: 20 normalized features [0, 1]
     - Hidden Layer 1: 64 neurons, ReLU, Dropout(0.2)
     - Hidden Layer 2: 32 neurons, ReLU, Dropout(0.2)
     - Output: 1 neuron, Sigmoid → [0, 1] probability
-    
-    Total parameters: 3,777
+
+    Total parameters: 3,457
+
+    Features (20):
+      Surgical Precision (7): structural_level, liquidity_sweep, momentum,
+        volume, risk_reward, macro_alignment, on_chain
+      Market Context (5): volatility, trend_strength, drawdown,
+        time_since_trade, correlation_spy
+      Risk Metrics (5): position_size, margin_util, concurrent_trades,
+        losing_streak, profit_distance
+      Timing & Confluence (3): mtf_alignment, price_action, confluence
     """
-    
+
     def __init__(
         self,
-        input_size: int = 25,
+        input_size: int = 20,
         hidden1: int = 64,
         hidden2: int = 32,
         dropout: float = 0.2,
@@ -85,7 +94,7 @@ class SetupQualityScorer(nn.Module):
         Forward pass through the network.
         
         Args:
-            x: Input tensor of shape (batch_size, 25)
+            x: Input tensor of shape (batch_size, 20)
         
         Returns:
             output: Tensor of shape (batch_size, 1) with values in [0, 1]
@@ -113,7 +122,7 @@ class SetupQualityScorer(nn.Module):
         Predict if setup should be traded.
         
         Args:
-            x: Input features (batch_size, 25)
+            x: Input features (batch_size, 20)
             threshold: Score threshold for trading decision
             return_proba: If True, also return probability scores
         
@@ -244,7 +253,7 @@ class TrainingMetrics:
         }
 
 
-def validate_features(features: torch.Tensor, expected_size: int = 25) -> bool:
+def validate_features(features: torch.Tensor, expected_size: int = 20) -> bool:
     """
     Validate feature vector before inference.
     
@@ -288,16 +297,16 @@ def apply_hard_gates(features: Dict[str, float]) -> Tuple[bool, str]:
         (allow_trade: bool, reason: str)
     """
     
-    # Gate 1: R/R ratio (critical)
-    if features.get('f_risk_reward_score', 1.0) == 0.0:
+    # Gate 1: R/R ratio (critical) — feature name matches dataset schema
+    if features.get('f_risk_reward', 1.0) == 0.0:
         return False, "HARD_GATE_RRR_VIOLATION"
-    
-    # Gate 2: Position size
-    if features.get('f_position_size_ratio', 1.0) == 0.0:
+
+    # Gate 2: Position size — feature name matches dataset schema
+    if features.get('f_position_size', 1.0) == 0.0:
         return False, "HARD_GATE_POSITION_SIZE_VIOLATION"
-    
-    # Gate 3: Position limit
-    if features.get('f_max_concurrent_trades', 1.0) == 0.0:
+
+    # Gate 3: Position limit — feature name matches dataset schema
+    if features.get('f_concurrent_trades', 1.0) == 0.0:
         return False, "HARD_GATE_POSITION_LIMIT_EXCEEDED"
     
     return True, "GATES_PASSED"
@@ -359,7 +368,7 @@ if __name__ == '__main__':
     print(f"Model config: {model.get_config()}")
     
     # Dummy input
-    x = torch.randn(4, 25)
+    x = torch.randn(4, 20)
     x = torch.clamp(x, 0, 1)  # Normalize to [0, 1]
     
     # Forward pass

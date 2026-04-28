@@ -90,6 +90,9 @@ markers = [
 filterwarnings = [
     "error::DeprecationWarning",
     "ignore::DeprecationWarning:sqlalchemy.*",
+    # datetime.utcnow() deprecated in 3.12+; suppress until full migration to timezone-aware
+    "ignore:datetime.datetime.utcnow:DeprecationWarning",
+    "ignore:datetime.datetime.utcfromtimestamp:DeprecationWarning",
 ]
 
 [tool.coverage.run]

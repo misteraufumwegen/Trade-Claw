@@ -105,10 +105,10 @@ class BrokerSessionRouter:
     async def create_session(
         self,
         user_id: str,
-        broker_type: BrokerType,
+        broker_type: BrokerType | str,
         credentials: dict[str, str],
         **config,
-    ) -> BrokerSession:
+    ) -> str:
         """
         Create new broker session.
 
@@ -119,12 +119,15 @@ class BrokerSessionRouter:
             **config: Broker-specific configuration
 
         Returns:
-            BrokerSession if successful
+            session_id string
 
         Raises:
             ValueError: If broker type not supported
             AuthenticationError: If credentials invalid
         """
+        # Accept both string and BrokerType enum
+        if isinstance(broker_type, str):
+            broker_type = BrokerType(broker_type)
 
         logger.info(f"Creating session for user={user_id} broker={broker_type.value}")
 
@@ -164,7 +167,7 @@ class BrokerSessionRouter:
         )
 
         logger.info("Session created: %s", session_id)
-        return session
+        return session_id
 
     async def get_session(self, user_id: str) -> BrokerSession | None:
         """Get active session for user"""
@@ -232,6 +235,26 @@ class BrokerSessionRouter:
             return []
 
         return list(self.sessions.values())
+
+    async def get_api_adapter(self, session_id: str) -> OrderAPIAdapter:
+        """Get OrderAPIAdapter for a session by ID.
+
+        This is the primary interface used by FastAPI endpoints to interact
+        with a broker session.
+
+        Raises:
+            ValueError: If session not found or stale.
+        """
+        session = self.sessions.get(session_id)
+        if not session:
+            raise ValueError(f"Session not found: {session_id}")
+        if session.is_stale():
+            await self.close_session(session_id)
+            raise ValueError(f"Session expired: {session_id}")
+        session.update_activity()
+        if session.api_adapter is None:
+            raise ValueError(f"Session has no API adapter: {session_id}")
+        return session.api_adapter
 
     async def cleanup_stale_sessions(self, timeout_minutes: int = 30):
         """Remove idle sessions"""

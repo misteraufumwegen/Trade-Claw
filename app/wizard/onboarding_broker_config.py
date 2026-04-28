@@ -202,25 +202,31 @@ class OnboardingWizard:
             raise ValueError(f"Invalid step: {state.step}")
 
         try:
-            # Attempt to create session
-            session = await self.router.create_session(
+            # Attempt to create session (returns session_id string)
+            session_id = await self.router.create_session(
                 user_id=user_id,
                 broker_type=state.selected_broker,
                 credentials=state.credentials,
             )
 
-            state.session_id = session.session_id
+            state.session_id = session_id
             state.step = WizardStep.RISK_SETUP
             state.updated_at = datetime.utcnow()
 
-            # Fetch account info
-            balance = await session.broker.get_account_balance()
+            # Fetch account info via the broker session
+            session_obj = await self.router.get_session(user_id)
+            balance = {}
+            if session_obj and hasattr(session_obj.broker, "get_account_balance"):
+                try:
+                    balance = await session_obj.broker.get_account_balance()
+                except Exception:
+                    balance = {"balance": 0, "equity": 0}
 
             logger.info(f"Credentials validated for user={user_id}")
 
             self.audit_log.log(
                 action="CREDENTIALS_VALIDATED",
-                details={"user_id": user_id, "session_id": session.session_id},
+                details={"user_id": user_id, "session_id": session_id},
             )
 
             return {
@@ -228,8 +234,8 @@ class OnboardingWizard:
                 "message": "Credentials validated! Account connected.",
                 "account_info": {
                     "broker": state.selected_broker.value,
-                    "balance": balance.get("balance", 0),
-                    "equity": balance.get("equity", 0),
+                    "balance": balance.get("balance", 0) if isinstance(balance, dict) else 0,
+                    "equity": balance.get("equity", 0) if isinstance(balance, dict) else 0,
                 },
             }
 

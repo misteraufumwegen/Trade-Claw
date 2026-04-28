@@ -58,13 +58,19 @@ class TestSessionRouter:
 
         router = BrokerSessionRouter()
 
-        session = await router.create_session(
+        session_id = await router.create_session(
             user_id="test_user",
             broker_type=BrokerType.MOCK,
             credentials={"api_key": "test"},
         )
 
-        assert session.session_id is not None
+        assert session_id is not None
+        assert isinstance(session_id, str)
+        assert session_id.startswith("session_")
+
+        # Verify session is retrievable
+        session = await router.get_session("test_user")
+        assert session is not None
         assert session.user_id == "test_user"
         assert session.broker_type == BrokerType.MOCK
         assert session.api_adapter is not None
@@ -75,7 +81,7 @@ class TestSessionRouter:
 
         router = BrokerSessionRouter()
 
-        session1 = await router.create_session(
+        session_id = await router.create_session(
             user_id="user1",
             broker_type=BrokerType.MOCK,
             credentials={"api_key": "test"},
@@ -84,7 +90,7 @@ class TestSessionRouter:
         retrieved = await router.get_session("user1")
 
         assert retrieved is not None
-        assert retrieved.session_id == session1.session_id
+        assert retrieved.session_id == session_id
 
     @pytest.mark.asyncio
     async def test_session_closure(self):
@@ -92,13 +98,13 @@ class TestSessionRouter:
 
         router = BrokerSessionRouter()
 
-        session = await router.create_session(
+        session_id = await router.create_session(
             user_id="user1",
             broker_type=BrokerType.MOCK,
             credentials={"api_key": "test"},
         )
 
-        success = await router.close_session(session.session_id)
+        success = await router.close_session(session_id)
         assert success is True
 
         # Should be gone
@@ -160,10 +166,10 @@ class TestOnboardingWizard:
         # Step 2: Select broker
         wizard.select_broker(user_id="user1", broker_type="mock")
 
-        # Step 3: Enter credentials
+        # Step 3: Enter credentials (must be >= 10 chars)
         wizard.enter_credentials(
             user_id="user1",
-            credentials={"api_key": "test_key"},
+            credentials={"api_key": "test_key_1234567890"},
         )
 
         # Step 4: Validate credentials

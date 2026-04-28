@@ -1,16 +1,34 @@
+# Trade-Claw Requirements
+# Python 3.11+
+
+# FastAPI & Web
 fastapi==0.104.1
 uvicorn[standard]==0.24.0
 pydantic==2.5.0
+
+# HTTP & Async
+aiohttp==3.9.1
+httpx==0.25.2
+requests==2.31.0
+
+# Database (SQLite built-in, PostgreSQL optional)
 sqlalchemy==2.0.23
 alembic==1.13.1
-psycopg[binary]==3.3.3
+
+# Redis (optional - session management in production)
 redis==5.0.1
-python-dotenv==1.0.0
+
+# Cryptography & Security
 cryptography==41.0.7
+
+# Configuration
+python-dotenv==1.0.0
+pyyaml==6.0.1
+
+# Numerical / ML
+numpy==1.26.3
+
+# Testing
 pytest==7.4.3
 pytest-asyncio==0.21.1
-httpx==0.25.2
-ccxt==4.0.96
-aiohttp==3.9.1
-v20==3.0.25.0
-numpy==1.26.3
+pytest-cov==4.1.0
