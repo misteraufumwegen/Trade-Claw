@@ -1,36 +1,41 @@
-# Trading Bot - Phase 1 Scaffold
+# Trade-Claw — Trading Bot
 
-A multi-broker trading platform built with FastAPI, PostgreSQL, and Redis. Supports Alpaca and OANDA brokers with sandbox/demo environments for safe testing.
+A multi-broker trading platform built with FastAPI + a self-contained React UI.
+Single-user, runs locally on Windows and macOS. Supports Alpaca, OANDA,
+Hyperliquid, and a Mock broker for testing. Paper-mode by default; live trading
+is opt-in per session.
 
-## Quick Start (All Platforms)
+## Quick Start (recommended)
 
-### Prerequisites
+The bundled launcher creates a Python venv on first run, installs dependencies,
+starts the API, and opens the UI in your default browser.
 
-- **Docker Desktop** (macOS, Windows) or **Docker + Docker Compose** (Linux)
-  - macOS: https://www.docker.com/products/docker-desktop/
-  - Windows: https://www.docker.com/products/docker-desktop/
-  - Linux: `sudo apt install docker.io docker-compose` (Debian/Ubuntu)
-- **Python 3.11+** (optional, for local development)
+- **Windows**: double-click `start-app.bat`
+- **macOS**: double-click `start-app.command`
+  (one-time on Mac: `chmod +x start-app.command` from a terminal)
+- **Linux / any platform**: `python3 launcher.py`
 
-### 1. Clone & Setup
+The UI lives at `http://localhost:8000/app/`. The API lives at the same origin
+under `/api/...`. Stop the server with `Ctrl+C` in the launcher window.
 
-```bash
-cd trading-bot
-cp .env.example .env
-```
+> First-time-only setup: copy `.env.example` to `.env` if the launcher does not
+> do it for you, and put a real `TRADE_CLAW_API_KEY` in there. The default
+> `dev-api-key-local-only` works for local testing.
 
-Edit `.env` with your sandbox credentials (Alpaca/OANDA demo keys).
+## Trading modes
 
-### 2. Start Services (Docker)
+- **Paper / Demo (default)** — connects to broker sandboxes (Alpaca paper,
+  OANDA demo) or to the testnet (Hyperliquid). No real money moves.
+- **Live** — only used when the broker setup wizard is explicitly switched to
+  *Live*; you confirm twice before the session is created.
 
-```bash
-docker-compose up -d
-```
+You can switch any time by reconfiguring the broker session from
+*Settings → Neu konfigurieren* in the UI.
 
-This starts:
-- **PostgreSQL** on `localhost:5432`
-- **Redis** on `localhost:6379`
-- **FastAPI** on `localhost:8000`
+## Docker (advanced)
+
+The Docker setup is preserved for users who prefer containers; it starts
+PostgreSQL + Redis + FastAPI on the same host:
 
 ### 3. Verify Installation
 

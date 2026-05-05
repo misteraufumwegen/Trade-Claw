@@ -11,9 +11,12 @@ load_dotenv()
 from datetime import datetime
 from decimal import Decimal
 
+from pathlib import Path
+
 from fastapi import Depends, FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 from sqlalchemy.orm import Session
 
@@ -83,7 +86,10 @@ app = FastAPI(
     redoc_url="/redoc",
 )
 
-# CORS (H1) — comma-separated origins from CORS_ORIGINS, falls back to "no origin".
+# CORS (H1) — comma-separated origins from CORS_ORIGINS.
+# When the frontend is served from the same FastAPI app (default deployment),
+# CORS is unnecessary; we still enable it when CORS_ORIGINS is set for users
+# who run the frontend from a separate dev server.
 _cors_origins_raw = os.getenv("CORS_ORIGINS", "").strip()
 _cors_origins = [o.strip() for o in _cors_origins_raw.split(",") if o.strip()]
 if _cors_origins:
@@ -92,7 +98,8 @@ if _cors_origins:
         allow_origins=_cors_origins,
         allow_credentials=True,
         allow_methods=["GET", "POST", "DELETE"],
-        allow_headers=["Authorization", "Content-Type"],
+        # X-API-Key is the header used by the bundled frontend (see frontend/api.js).
+        allow_headers=["Authorization", "Content-Type", "X-API-Key"],
         max_age=600,
     )
     logger.info("CORS enabled for origins: %s", _cors_origins)
@@ -109,6 +116,7 @@ router = BrokerSessionRouter()
 _SYMBOL_PATTERN = r"^[A-Z0-9]{1,10}([/_\-][A-Z0-9]{1,10})?$"
 
 _SUPPORTED_BROKERS = {"alpaca", "oanda", "hyperliquid", "mock"}
+_SUPPORTED_ENVIRONMENTS = {"paper", "live"}
 _SUPPORTED_SIDES = {"BUY", "SELL"}
 _SUPPORTED_SEVERITIES = {"INFO", "WARNING", "ERROR", "CRITICAL"}
 _SUPPORTED_ACTIONS = {
@@ -118,6 +126,7 @@ _SUPPORTED_ACTIONS = {
     "ORDER_FILLED",
     "SESSION_CREATED",
     "SESSION_CLOSED",
+    "SESSION_HALTED",
     "RISK_BREACH",
 }
 
@@ -130,6 +139,12 @@ class BrokerSetupRequest(BaseModel):
     broker_type: str = Field(..., description="alpaca, oanda, hyperliquid, mock")
     credentials: dict = Field(..., description="Broker credentials (API keys, etc.)")
     user_id: str | None = Field(None, max_length=64)
+    # Paper (sandbox/demo/testnet) vs live trading. Defaults to paper so a
+    # misconfigured frontend can never accidentally hit a live account.
+    environment: str = Field(
+        "paper",
+        description="paper (sandbox/demo/testnet) or live (real money)",
+    )
 
     @field_validator("broker_type")
     @classmethod
@@ -138,6 +153,16 @@ class BrokerSetupRequest(BaseModel):
         if v_lower not in _SUPPORTED_BROKERS:
             raise ValueError(
                 f"Unsupported broker_type '{v}'. Allowed: {sorted(_SUPPORTED_BROKERS)}"
+            )
+        return v_lower
+
+    @field_validator("environment")
+    @classmethod
+    def _check_environment(cls, v: str) -> str:
+        v_lower = v.strip().lower()
+        if v_lower not in _SUPPORTED_ENVIRONMENTS:
+            raise ValueError(
+                f"Unsupported environment '{v}'. Allowed: {sorted(_SUPPORTED_ENVIRONMENTS)}"
             )
         return v_lower
 
@@ -156,6 +181,7 @@ class BrokerSetupRequest(BaseModel):
 class BrokerSetupResponse(BaseModel):
     session_id: str
     broker_type: str
+    environment: str
     status: str = "ACTIVE"
     created_at: datetime
     message: str
@@ -320,11 +346,17 @@ async def health_check():
 
 @app.get("/")
 async def root():
+    """Redirect to the bundled UI when available, otherwise return API metadata."""
+    if (Path(__file__).resolve().parent.parent / "frontend" / "index.html").exists():
+        from fastapi.responses import RedirectResponse
+
+        return RedirectResponse(url="/app/", status_code=307)
     return {
         "name": "Trade-Claw API",
         "version": "4.0.0",
         "description": "Multi-broker trading API with risk management",
         "docs": "/docs",
+        "ui": "/app/ (frontend not found)",
     }
 
 
@@ -344,10 +376,22 @@ async def setup_broker(
 ):
     """Set up a broker connection and create a session."""
     try:
+        # Paper-mode flags map to broker-specific testnet/sandbox configuration.
+        # Done here so the router doesn't need to know about the env switch.
+        session_kwargs: dict = {}
+        if request.environment == "paper":
+            if request.broker_type == "hyperliquid":
+                session_kwargs["testnet"] = True
+            # Alpaca / OANDA: their adapters are not implemented yet, but the
+            # convention they use is documented for future implementers:
+            #   alpaca:   ALPACA_ENVIRONMENT=sandbox / live
+            #   oanda:    OANDA_ENVIRONMENT=demo    / live
+
         session_id = await router.create_session(
             user_id=request.user_id or "default",
             broker_type=request.broker_type,
             credentials=request.credentials,
+            **session_kwargs,
         )
 
         # Persist encrypted credentials so they survive restarts (C3).
@@ -378,8 +422,12 @@ async def setup_broker(
         return BrokerSetupResponse(
             session_id=session_id,
             broker_type=request.broker_type,
+            environment=request.environment,
             created_at=datetime.utcnow(),
-            message=f"Successfully connected to {request.broker_type}",
+            message=(
+                f"Successfully connected to {request.broker_type} "
+                f"({request.environment})"
+            ),
         )
 
     except (ValueError, BrokerConnectionError) as exc:
@@ -418,15 +466,18 @@ async def get_quote(
             raise HTTPException(status_code=404, detail="Session not found")
 
         adapter = await router.get_api_adapter(session_id)
-        quote = await adapter.get_quote(symbol, amount or Decimal(1))
+        # OrderAPIAdapter delegates to the broker's get_quote; the underlying
+        # Quote dataclass exposes ``last_price`` and does not carry liquidity
+        # or fee fields, so we provide reasonable defaults here.
+        quote = await adapter.broker.get_quote(symbol)
 
         return PriceQuoteResponse(
             symbol=symbol,
-            bid=quote.bid,
-            ask=quote.ask,
-            last=quote.last,
-            liquidity=quote.liquidity,
-            estimated_fees=quote.estimated_fees or Decimal("0"),
+            bid=Decimal(str(quote.bid)),
+            ask=Decimal(str(quote.ask)),
+            last=Decimal(str(quote.last_price)),
+            liquidity="HIGH",
+            estimated_fees=Decimal("0"),
         )
 
     except HTTPException:
@@ -498,8 +549,12 @@ async def submit_order(
         # Account balance (fetched via broker adapter)
         risk_engine = RiskEngine(db)
         adapter = await router.get_api_adapter(session_id)
-        account_info = await adapter.get_account_info()
-        account_balance = Decimal(str(account_info.get("balance", 10000)))
+        try:
+            balance_info = await adapter.get_balance()
+        except Exception:  # noqa: BLE001
+            logger.exception("Could not fetch broker balance — using fallback")
+            balance_info = {}
+        account_balance = Decimal(str(balance_info.get("balance", 10000)))
 
         # Risk validation
         validation = risk_engine.validate_order(
@@ -529,14 +584,26 @@ async def submit_order(
                 detail=f"Order rejected: {validation.message}",
             )
 
-        # Submit to broker
-        order = await adapter.submit_order(
+        # Submit to broker via the OrderAPIAdapter, which expects a normalized
+        # OrderAPIRequest — translate from our HTTP DTO here.
+        from app.api.order_api_adapter import OrderAPIRequest  # noqa: PLC0415
+        from app.brokers.broker_interface import OrderDirection  # noqa: PLC0415
+
+        api_request = OrderAPIRequest(
             symbol=request.symbol,
-            side=request.side,
-            size=request.size,
-            entry=request.entry_price,
-            sl=request.stop_loss,
-            tp=request.take_profit,
+            direction=OrderDirection(request.side),
+            quantity=float(request.size),
+            entry_price=float(request.entry_price),
+            stop_loss=float(request.stop_loss),
+            take_profit=float(request.take_profit),
+        )
+        broker_order = await adapter.submit_order(api_request)
+
+        # ``Order.status`` is an enum on the broker side — persist its string.
+        order_status = (
+            broker_order.status.value
+            if hasattr(broker_order.status, "value")
+            else str(broker_order.status)
         )
 
         # Persist
@@ -545,14 +612,14 @@ async def submit_order(
         )
         db_order = Order(
             session_id=session_id,
-            order_id=order.order_id,
+            order_id=broker_order.order_id,
             symbol=request.symbol,
             side=request.side,
             size=request.size,
             entry_price=request.entry_price,
             stop_loss=request.stop_loss,
             take_profit=request.take_profit,
-            status=order.status,
+            status=order_status,
             risk_ratio=risk_ratio,
             idempotency_key=idem_key,
         )
@@ -564,7 +631,7 @@ async def submit_order(
                 action="ORDER_SUBMITTED",
                 symbol=request.symbol,
                 details=(
-                    f"Order {order.order_id} submitted: "
+                    f"Order {broker_order.order_id} submitted: "
                     f"{request.side} {request.size} @ {request.entry_price}"
                 ),
                 severity="INFO",
@@ -572,17 +639,17 @@ async def submit_order(
         )
         db.commit()
 
-        logger.info("Order submitted: %s - %s", order.order_id, request.symbol)
+        logger.info("Order submitted: %s - %s", broker_order.order_id, request.symbol)
 
         return OrderSubmitResponse(
-            order_id=order.order_id,
-            status=order.status,
+            order_id=broker_order.order_id,
+            status=order_status,
             symbol=request.symbol,
             side=request.side,
             size=request.size,
             entry_price=request.entry_price,
             created_at=datetime.utcnow(),
-            message=f"Order {order.order_id} submitted successfully",
+            message=f"Order {broker_order.order_id} submitted successfully",
             risk_ratio=risk_ratio,
             idempotency_key=idem_key,
         )
@@ -705,6 +772,116 @@ async def cancel_order(
     except Exception:
         logger.exception("Order cancellation failed")
         raise HTTPException(status_code=500, detail="Internal error") from None
+
+
+# ---------------------------------------------------------------------------
+# Emergency halt — cancels every open order in a session and flags the
+# RiskLimit row as halted so further submits are blocked by the risk engine.
+# ---------------------------------------------------------------------------
+
+
+class HaltResponse(BaseModel):
+    session_id: str
+    cancelled: list[str]
+    failed: list[dict]
+    is_halted: bool
+    message: str
+
+
+@app.post(
+    "/api/v1/halt",
+    response_model=HaltResponse,
+    dependencies=[Depends(require_api_key)],
+)
+async def halt_session(
+    session_id: str = Query(..., min_length=1, max_length=64),
+    db: Session = Depends(get_db_session),
+):
+    """Emergency halt: cancel all non-terminal orders for a session and flag halted."""
+    try:
+        broker_session = (
+            db.query(BrokerSession).filter(BrokerSession.session_id == session_id).first()
+        )
+        if not broker_session:
+            raise HTTPException(status_code=404, detail="Session not found")
+
+        open_orders = (
+            db.query(Order)
+            .filter(
+                Order.session_id == session_id,
+                Order.status.notin_(["CANCELLED", "FILLED", "REJECTED"]),
+            )
+            .all()
+        )
+
+        cancelled: list[str] = []
+        failed: list[dict] = []
+
+        if open_orders:
+            try:
+                adapter = await router.get_api_adapter(session_id)
+            except Exception as exc:
+                # Without a live adapter we still flip the local state so the UI
+                # reflects "halted" — but record the failure so the user knows
+                # broker-side orders may still exist.
+                logger.warning("No live adapter for halt on %s: %s", session_id, exc)
+                adapter = None
+
+            for order in open_orders:
+                if adapter is None:
+                    failed.append({"order_id": order.order_id, "error": "broker offline"})
+                    continue
+                try:
+                    await adapter.cancel_order(order.order_id)
+                    order.status = "CANCELLED"
+                    order.cancelled_at = datetime.utcnow()
+                    cancelled.append(order.order_id)
+                except Exception as exc:  # noqa: BLE001
+                    logger.exception("Halt: cancel failed for %s", order.order_id)
+                    failed.append({"order_id": order.order_id, "error": str(exc)})
+
+        # Flip the risk limit row to halted so the engine refuses new orders.
+        risk_limit = (
+            db.query(RiskLimit).filter(RiskLimit.session_id == session_id).first()
+        )
+        if risk_limit:
+            risk_limit.is_halted = True
+
+        db.add(
+            AuditLog(
+                session_id=session_id,
+                action="SESSION_HALTED",
+                details=(
+                    f"Emergency halt: {len(cancelled)} cancelled, "
+                    f"{len(failed)} failed"
+                ),
+                severity="CRITICAL",
+            )
+        )
+        db.commit()
+
+        logger.warning(
+            "EMERGENCY HALT executed for %s: %d cancelled, %d failed",
+            session_id,
+            len(cancelled),
+            len(failed),
+        )
+        return HaltResponse(
+            session_id=session_id,
+            cancelled=cancelled,
+            failed=failed,
+            is_halted=True,
+            message=(
+                f"Halt executed: {len(cancelled)} order(s) cancelled, "
+                f"{len(failed)} failed"
+            ),
+        )
+
+    except HTTPException:
+        raise
+    except Exception:
+        logger.exception("Halt failed")
+        raise HTTPException(status_code=500, detail="Halt failed") from None
 
 
 # ---------------------------------------------------------------------------
@@ -951,6 +1128,196 @@ async def execute_trade_phase2(request: _ExecuteTradeRequest):
 
 
 # ---------------------------------------------------------------------------
+# Correlation Engine (app/correlation)
+# ---------------------------------------------------------------------------
+
+from app.correlation import AssetManager, CorrelationEngine  # noqa: E402
+
+_asset_manager = AssetManager()
+_correlation_engine = CorrelationEngine()
+
+
+class _CorrelationAnalyzeRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    asset_prices: dict[str, list[float]] = Field(
+        ...,
+        description="Map of asset symbol → time-aligned price series",
+    )
+    threshold: float = Field(0.7, ge=0.0, le=1.0)
+
+
+@app.get("/api/v1/correlation/assets")
+async def correlation_assets():
+    """List predefined assets known to the correlation engine."""
+    assets = _asset_manager.list_assets()
+    by_type: dict[str, int] = {}
+    out: dict[str, dict[str, str]] = {}
+    for sym, asset in assets.items():
+        by_type[asset.asset_type.value] = by_type.get(asset.asset_type.value, 0) + 1
+        out[sym] = {
+            "name": asset.name,
+            "type": asset.asset_type.value,
+            "description": asset.description,
+        }
+    return {"assets": out, "count": len(out), "categories": by_type}
+
+
+@app.post("/api/v1/correlation/analyze")
+async def correlation_analyze(request: _CorrelationAnalyzeRequest):
+    """Compute pairwise correlations across an arbitrary set of assets."""
+    try:
+        if len(request.asset_prices) < 2:
+            raise HTTPException(
+                status_code=400,
+                detail="Need at least 2 assets for correlation analysis",
+            )
+        return _correlation_engine.analyze(
+            asset_prices=request.asset_prices,
+            threshold=request.threshold,
+        )
+    except HTTPException:
+        raise
+    except Exception:
+        logger.exception("Correlation analysis failed")
+        raise HTTPException(status_code=500, detail="Correlation failed") from None
+
+
+# ---------------------------------------------------------------------------
+# Macro Events (app/macro)
+# ---------------------------------------------------------------------------
+
+from app.macro import EventScorer, MacroEventFetcher  # noqa: E402
+
+_macro_fetcher = MacroEventFetcher()
+_event_scorer = EventScorer()
+
+
+@app.get("/api/v1/macro/events")
+async def macro_events(
+    category: str | None = Query(None, description="Filter by event category"),
+    limit: int = Query(50, ge=1, le=200),
+):
+    """List historical and recent macro events."""
+    try:
+        events = _macro_fetcher.events
+        if category:
+            from app.macro import EventCategory
+
+            try:
+                cat = EventCategory(category)
+            except ValueError as exc:
+                raise HTTPException(
+                    status_code=400,
+                    detail=(
+                        "Unknown category. Allowed: "
+                        f"{[c.value for c in EventCategory]}"
+                    ),
+                ) from exc
+            events = [e for e in events if e.category == cat]
+
+        events_sorted = sorted(events, key=lambda e: e.timestamp, reverse=True)[:limit]
+        return {
+            "count": len(events_sorted),
+            "total": len(_macro_fetcher.events),
+            "events": [
+                {**e.to_dict(), "score": _event_scorer.score_event(e)}
+                for e in events_sorted
+            ],
+        }
+    except HTTPException:
+        raise
+    except Exception:
+        logger.exception("Macro events fetch failed")
+        raise HTTPException(status_code=500, detail="Macro fetch failed") from None
+
+
+@app.get("/api/v1/macro/upcoming")
+async def macro_upcoming(hours: int = Query(72, ge=1, le=720)):
+    """Events whose timestamp lies in the next N hours."""
+    from datetime import timedelta
+
+    now = datetime.utcnow()
+    horizon = now + timedelta(hours=hours)
+    upcoming = [
+        e for e in _macro_fetcher.events if now <= e.timestamp <= horizon
+    ]
+    upcoming_sorted = sorted(upcoming, key=lambda e: e.timestamp)
+    return {
+        "count": len(upcoming_sorted),
+        "horizon_hours": hours,
+        "events": [
+            {**e.to_dict(), "score": _event_scorer.score_event(e)}
+            for e in upcoming_sorted
+        ],
+    }
+
+
+# ---------------------------------------------------------------------------
+# ML / Trade Grader (app/ml/grader.py)
+# ---------------------------------------------------------------------------
+
+from app.ml.grader import SetupCriteria, TradeGrader  # noqa: E402
+
+_trade_grader = TradeGrader()
+
+
+class _GradeCriteria(BaseModel):
+    structural_level: bool = False
+    liquidity_sweep: bool = False
+    momentum: bool = False
+    volume: bool = False
+    risk_reward: bool = False
+    macro_alignment: bool = False
+    no_contradiction: bool = False
+
+
+class _GradeRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    symbol: str = Field(..., min_length=1, max_length=20)
+    direction: str = Field(..., description="LONG or SHORT")
+    entry_price: float = Field(..., gt=0)
+    stop_loss_price: float = Field(..., gt=0)
+    tp1_price: float = Field(..., gt=0)
+    tp2_price: float = Field(..., gt=0)
+    criteria: _GradeCriteria = Field(default_factory=_GradeCriteria)
+    confidence: float = Field(50.0, ge=0, le=100)
+    risk_percent: float = Field(2.0, gt=0, le=10)
+    drawdown_stage: int = Field(1, ge=1, le=5)
+
+    @field_validator("direction")
+    @classmethod
+    def _check_direction(cls, v: str) -> str:
+        v = v.strip().upper()
+        if v not in {"LONG", "SHORT"}:
+            raise ValueError("direction must be LONG or SHORT")
+        return v
+
+
+@app.post("/api/v1/ml/grade")
+async def grade_setup(request: _GradeRequest):
+    """Grade a trade setup using the 7-criteria framework."""
+    try:
+        setup = _trade_grader.grade(
+            symbol=request.symbol,
+            direction=request.direction,
+            entry_price=request.entry_price,
+            stop_loss_price=request.stop_loss_price,
+            tp1_price=request.tp1_price,
+            tp2_price=request.tp2_price,
+            criteria=SetupCriteria(**request.criteria.model_dump()),
+            confidence=request.confidence,
+            risk_percent=request.risk_percent,
+        )
+        tradeable = _trade_grader.is_tradeable(setup, drawdown_stage=request.drawdown_stage)
+        return {**setup.to_dict(), "tradeable": tradeable}
+    except Exception:
+        logger.exception("Grade setup failed")
+        raise HTTPException(status_code=500, detail="Grade failed") from None
+
+
+# ---------------------------------------------------------------------------
 # Error handlers
 # ---------------------------------------------------------------------------
 
@@ -974,6 +1341,27 @@ async def general_exception_handler(request, exc: Exception):  # pragma: no cove
         content={"error": "Internal server error"},
         media_type="application/json; charset=utf-8",
     )
+
+
+# ---------------------------------------------------------------------------
+# Static frontend
+#
+# The bundled UI (frontend/index.html + companion .js/.css) is served from the
+# same FastAPI process so the launcher only needs to start one server. This
+# also avoids CORS for the default deployment because the UI shares the
+# backend's origin.
+# ---------------------------------------------------------------------------
+
+_FRONTEND_DIR = Path(__file__).resolve().parent.parent / "frontend"
+if _FRONTEND_DIR.is_dir():
+    app.mount(
+        "/app",
+        StaticFiles(directory=str(_FRONTEND_DIR), html=True),
+        name="frontend",
+    )
+    logger.info("Frontend mounted at /app from %s", _FRONTEND_DIR)
+else:
+    logger.warning("Frontend directory not found at %s — UI not available", _FRONTEND_DIR)
 
 
 if __name__ == "__main__":

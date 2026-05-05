@@ -21,10 +21,11 @@ import hmac
 import os
 import secrets
 
-from fastapi import Depends, HTTPException, status
-from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from fastapi import Depends, HTTPException, Request, status
+from fastapi.security import APIKeyHeader, HTTPAuthorizationCredentials, HTTPBearer
 
 _bearer = HTTPBearer(auto_error=False)
+_api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)
 
 # Placeholder marker used to detect unconfigured deployments.
 _UNSET_MARKERS = {
@@ -49,12 +50,17 @@ def _load_api_key() -> str | None:
 
 async def require_api_key(
     credentials: HTTPAuthorizationCredentials | None = Depends(_bearer),
+    api_key_header: str | None = Depends(_api_key_header),
 ) -> None:
     """
-    FastAPI dependency that enforces a bearer API key.
+    FastAPI dependency that enforces an API key.
 
-    Raises 401 if the header is missing/malformed, 403 if the key is wrong,
-    and 503 if the server is started without `TRADE_CLAW_API_KEY` configured.
+    Accepts either:
+      - ``Authorization: Bearer <key>`` header, or
+      - ``X-API-Key: <key>`` header (used by the bundled frontend).
+
+    Raises 401 if no key is provided, 403 if the key is wrong, and 503 if
+    ``TRADE_CLAW_API_KEY`` is not configured on the server.
     """
     expected = _load_api_key()
     if expected is None:
@@ -64,14 +70,19 @@ async def require_api_key(
             detail="Server misconfigured: TRADE_CLAW_API_KEY is not set.",
         )
 
-    if credentials is None or credentials.scheme.lower() != "bearer":
+    provided: str | None = None
+    if credentials is not None and credentials.scheme.lower() == "bearer":
+        provided = credentials.credentials or ""
+    elif api_key_header:
+        provided = api_key_header.strip()
+
+    if not provided:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Missing bearer token.",
+            detail="Missing API key (use 'Authorization: Bearer <key>' or 'X-API-Key' header).",
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    provided = credentials.credentials or ""
     # Constant-time comparison to defeat timing oracles.
     if not hmac.compare_digest(provided.encode("utf-8"), expected.encode("utf-8")):
         raise HTTPException(
