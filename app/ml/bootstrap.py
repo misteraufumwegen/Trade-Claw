@@ -29,9 +29,10 @@ Important caveats:
 from __future__ import annotations
 
 import logging
+from collections.abc import Iterable
 from dataclasses import dataclass
-from datetime import datetime, timedelta
-from typing import Iterable, TYPE_CHECKING
+from datetime import datetime
+from typing import TYPE_CHECKING
 
 logger = logging.getLogger(__name__)
 
@@ -61,7 +62,7 @@ class BootstrapResult:
     time_range: tuple[str, str]
 
 
-def fetch_ohlcv(symbol: str, period: str = "2y") -> "pd.DataFrame | None":
+def fetch_ohlcv(symbol: str, period: str = "2y") -> pd.DataFrame | None:
     """Fetch end-of-day OHLCV via yfinance.
 
     Returns ``None`` (and logs) when the call fails so the caller can skip
@@ -81,7 +82,7 @@ def fetch_ohlcv(symbol: str, period: str = "2y") -> "pd.DataFrame | None":
         return None
 
 
-def _atr(df: "pd.DataFrame", period: int = 14) -> "pd.Series":
+def _atr(df: pd.DataFrame, period: int = 14) -> pd.Series:
     import pandas as pd  # noqa: PLC0415
 
     high_low = df["High"] - df["Low"]
@@ -91,7 +92,7 @@ def _atr(df: "pd.DataFrame", period: int = 14) -> "pd.Series":
     return tr.rolling(period).mean()
 
 
-def _rsi(close: "pd.Series", period: int = 14) -> "pd.Series":
+def _rsi(close: pd.Series, period: int = 14) -> pd.Series:
     delta = close.diff()
     gain = delta.clip(lower=0).rolling(period).mean()
     loss = (-delta.clip(upper=0)).rolling(period).mean()
@@ -100,7 +101,7 @@ def _rsi(close: "pd.Series", period: int = 14) -> "pd.Series":
 
 
 def _generate_setups(
-    df: "pd.DataFrame",
+    df: pd.DataFrame,
     symbol: str,
     *,
     min_lookback: int = 30,
@@ -145,8 +146,18 @@ def _generate_setups(
             sl = entry - risk_atr_mult * atr
             tp = entry + reward_atr_mult * atr
             yield from _maybe_emit(
-                df, idx, symbol, side="BUY", entry=entry, sl=sl, tp=tp,
-                rsi=rsi, vol=vol, vol_ma=vol_ma, week=week, atr=atr,
+                df,
+                idx,
+                symbol,
+                side="BUY",
+                entry=entry,
+                sl=sl,
+                tp=tp,
+                rsi=rsi,
+                vol=vol,
+                vol_ma=vol_ma,
+                week=week,
+                atr=atr,
                 forward_window=forward_window,
             )
         # Short setup: 20-day breakdown
@@ -155,43 +166,60 @@ def _generate_setups(
             sl = entry + risk_atr_mult * atr
             tp = entry - reward_atr_mult * atr
             yield from _maybe_emit(
-                df, idx, symbol, side="SELL", entry=entry, sl=sl, tp=tp,
-                rsi=rsi, vol=vol, vol_ma=vol_ma, week=week, atr=atr,
+                df,
+                idx,
+                symbol,
+                side="SELL",
+                entry=entry,
+                sl=sl,
+                tp=tp,
+                rsi=rsi,
+                vol=vol,
+                vol_ma=vol_ma,
+                week=week,
+                atr=atr,
                 forward_window=forward_window,
             )
 
 
 def _maybe_emit(
-    df, idx, symbol, *, side, entry, sl, tp,
-    rsi, vol, vol_ma, week, atr, forward_window,
+    df,
+    idx,
+    symbol,
+    *,
+    side,
+    entry,
+    sl,
+    tp,
+    rsi,
+    vol,
+    vol_ma,
+    week,
+    atr,
+    forward_window,
 ):
     """Forward-test the setup and yield a labelled feature row."""
-    import pandas as pd  # noqa: PLC0415
 
     forward = df.iloc[idx + 1 : idx + 1 + forward_window]
     hit_tp = False
     hit_sl = False
-    closed_price = float(forward.iloc[-1]["Close"])
+    float(forward.iloc[-1]["Close"])
     for _, fr in forward.iterrows():
         high = float(fr["High"])
         low = float(fr["Low"])
         if side == "BUY":
             if high >= tp:
                 hit_tp = True
-                closed_price = tp
                 break
             if low <= sl:
                 hit_sl = True
-                closed_price = sl
                 break
         else:
             if low <= tp:
                 hit_tp = True
-                closed_price = tp
                 break
             if high >= sl:
                 hit_sl = True
-                closed_price = sl
                 break
 
     if not (hit_tp or hit_sl):
@@ -213,26 +241,26 @@ def _maybe_emit(
 
     features = [
         # Surgical-precision proxies
-        _clip(1.0 if (hit_tp or hit_sl) else 0.0),                  # f_structural_level
-        _clip(1.0 if abs(rsi - 50) > 10 else 0.0),                  # f_liquidity_sweep proxy
-        _clip(abs(rsi - 50) / 50.0),                                # f_momentum
-        _clip(vol / max(vol_ma, 1e-9) / 2.0),                       # f_volume (saturates at 2x avg)
-        _clip(rr / 3.0),                                            # f_risk_reward
-        _clip(1.0 if week_aligned else 0.0),                         # f_macro_alignment
-        0.5,                                                         # f_on_chain (no signal here)
-        _clip(atr / max(entry, 1e-9) / 0.05),                       # f_volatility (5% saturates)
-        _clip(0.5 + week * 5.0),                                    # f_trend_strength
-        0.0,                                                         # f_drawdown (assume fresh)
-        0.5,                                                         # f_time_since_trade
-        0.5,                                                         # f_correlation_spy
-        0.5,                                                         # f_position_size
-        0.5,                                                         # f_margin_util
-        1.0,                                                         # f_concurrent_trades
-        1.0,                                                         # f_losing_streak
-        _clip(rr / 5.0),                                            # f_profit_distance
-        _clip(1.0 if week_aligned else 0.0),                         # f_mtf_alignment
-        _clip(abs(rsi - 50) / 50.0),                                # f_price_action
-        _clip(((1.0 if week_aligned else 0.0) + min(rr/3, 1)) / 2), # f_confluence
+        _clip(1.0 if (hit_tp or hit_sl) else 0.0),  # f_structural_level
+        _clip(1.0 if abs(rsi - 50) > 10 else 0.0),  # f_liquidity_sweep proxy
+        _clip(abs(rsi - 50) / 50.0),  # f_momentum
+        _clip(vol / max(vol_ma, 1e-9) / 2.0),  # f_volume (saturates at 2x avg)
+        _clip(rr / 3.0),  # f_risk_reward
+        _clip(1.0 if week_aligned else 0.0),  # f_macro_alignment
+        0.5,  # f_on_chain (no signal here)
+        _clip(atr / max(entry, 1e-9) / 0.05),  # f_volatility (5% saturates)
+        _clip(0.5 + week * 5.0),  # f_trend_strength
+        0.0,  # f_drawdown (assume fresh)
+        0.5,  # f_time_since_trade
+        0.5,  # f_correlation_spy
+        0.5,  # f_position_size
+        0.5,  # f_margin_util
+        1.0,  # f_concurrent_trades
+        1.0,  # f_losing_streak
+        _clip(rr / 5.0),  # f_profit_distance
+        _clip(1.0 if week_aligned else 0.0),  # f_mtf_alignment
+        _clip(abs(rsi - 50) / 50.0),  # f_price_action
+        _clip(((1.0 if week_aligned else 0.0) + min(rr / 3, 1)) / 2),  # f_confluence
     ]
 
     yield {
@@ -294,11 +322,14 @@ def bootstrap(
     losses = len(y) - wins
     logger.info(
         "Bootstrap dataset: %d samples (%d wins / %d losses) across %s",
-        len(X), wins, losses, processed,
+        len(X),
+        wins,
+        losses,
+        processed,
     )
 
     # Reuse the live trainer with synthetic-only data (no outcomes table read)
-    result = train_from_outcomes(
+    train_from_outcomes(
         db,
         epochs=epochs,
         learning_rate=learning_rate,
@@ -308,8 +339,13 @@ def bootstrap(
 
     # Direct training path that does not require outcomes table
     return _direct_train(
-        X, y, processed, epochs=epochs, learning_rate=learning_rate,
-        activate=activate, started=started,
+        X,
+        y,
+        processed,
+        epochs=epochs,
+        learning_rate=learning_rate,
+        activate=activate,
+        started=started,
     )
 
 
@@ -375,9 +411,7 @@ def _direct_train(
         "finished_at": datetime.utcnow().isoformat(),
         "symbols": processed,
     }
-    (ckpt_dir / f"scorer_bootstrap_{timestamp}.json").write_text(
-        _json.dumps(metadata, indent=2)
-    )
+    (ckpt_dir / f"scorer_bootstrap_{timestamp}.json").write_text(_json.dumps(metadata, indent=2))
 
     activated = False
     if activate:

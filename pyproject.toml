@@ -37,6 +37,14 @@ ignore = [
 "app/macro/event_*.py" = ["T201"]      # CLI demo prints are intentional
 "app/backtest/simulator.py" = ["S311"] # non-crypto random is intentional in backtest
 "app/brokers/mock_broker.py" = ["S311"] # non-crypto random is intentional in mock
+# main.py calls load_dotenv() before its imports so env-var reads at module
+# scope see the .env contents — E402 is intentional there.
+"app/main.py" = ["E402"]
+# Plugin discovery and HTTP-call layers swallow individual provider failures
+# on purpose so a bad plugin does not crash the whole app.
+"app/brokers/registry.py" = ["S112"]
+"app/brokers/generic_rest_adapter.py" = ["S112"]
+"app/brokers/plugins/ccxt_plugin.py" = ["S112"]
 
 [tool.ruff.format]
 quote-style = "double"
@@ -54,7 +62,7 @@ disallow_incomplete_defs = false  # allow partial annotations during gradual typ
 # Gradual: most files aren't typed yet. Opt-in strictness per module later.
 disallow_untyped_defs = false
 ignore_missing_imports = true
-exclude = ["alembic/versions", "migrations"]
+exclude = ["alembic/versions", "migrations", "ml_bot_phase1"]
 
 # ---- Gradual typing: suppress most error codes project-wide until modules
 #      are individually annotated.  The goal is to let CI pass while we
@@ -77,6 +85,14 @@ disable_error_code = [
     "operator",       # Column type operators
     "import-untyped", # missing stubs (e.g. yaml)
 ]
+
+# Treat ml_bot_phase1 as opaque — it's a sibling experimental project
+# that doesn't follow the same typing standards. Its checkpoints are
+# loaded dynamically by app.ml.service / trainer / bootstrap.
+[[tool.mypy.overrides]]
+module = ["ml_bot_phase1.*"]
+ignore_errors = true
+follow_imports = "skip"
 
 [tool.pytest.ini_options]
 minversion = "7.0"

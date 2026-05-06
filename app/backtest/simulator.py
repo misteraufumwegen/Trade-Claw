@@ -156,11 +156,11 @@ class BacktestSimulator:
         if direction == "Long":
             sl_distance = entry_price - stop_loss
             tp1_distance = tp1 - entry_price
-            tp2_distance = tp2 - entry_price
+            tp2 - entry_price
         else:  # Short
             sl_distance = stop_loss - entry_price
             tp1_distance = entry_price - tp1
-            tp2_distance = entry_price - tp2
+            entry_price - tp2
 
         # Deterministisch basierend auf Trade-ID
         random.seed(hash(trade_id) % 2**32)

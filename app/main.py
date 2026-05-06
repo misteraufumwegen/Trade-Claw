@@ -11,12 +11,11 @@ from dotenv import load_dotenv
 load_dotenv()
 from datetime import datetime
 from decimal import Decimal
-
 from pathlib import Path
 
 from fastapi import Depends, FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 from sqlalchemy.orm import Session
@@ -29,14 +28,13 @@ from app.exceptions import (
     OrderRejectedError,
     OrderValidationError,
 )
+from app.logging_config import setup_logging
 from app.ml import (
     classify_outcome,
     extract_features,
-    initialize_model,
     model_status,
     score_features,
 )
-from app.logging_config import setup_logging
 from app.risk import DBRiskEngine as RiskEngine
 from app.routing import BrokerSessionRouter
 from app.security.auth import require_api_key
@@ -111,18 +109,13 @@ async def _outcome_poller(interval_seconds: float = 2.0) -> None:
             db = SessionLocal()
             try:
                 open_rows = (
-                    db.query(TradeOutcome)
-                    .filter(TradeOutcome.outcome.is_(None))
-                    .limit(50)
-                    .all()
+                    db.query(TradeOutcome).filter(TradeOutcome.outcome.is_(None)).limit(50).all()
                 )
                 for row in open_rows:
                     session = router.sessions.get(row.session_id)
                     if session is None or session.broker is None:
                         continue
-                    broker_order = getattr(session.broker, "orders", {}).get(
-                        row.order_id
-                    )
+                    broker_order = getattr(session.broker, "orders", {}).get(row.order_id)
                     if broker_order is None:
                         continue
                     meta = broker_order.metadata or {}
@@ -470,9 +463,7 @@ def _resolve_outcome(
     )
     row.outcome = label
     row.pnl = Decimal(str(round(pnl, 8)))
-    row.closed_price = (
-        Decimal(str(closed_price)) if closed_price is not None else None
-    )
+    row.closed_price = Decimal(str(closed_price)) if closed_price is not None else None
     row.closed_at = datetime.utcnow()
 
 
@@ -509,7 +500,11 @@ async def health_check():
 @app.get("/")
 async def root():
     """Redirect to the bundled UI when available, otherwise return API metadata."""
-    if (Path(__file__).resolve().parent.parent / "frontend" / "index.html").exists():
+    # Path.exists() is sync; we computed _FRONTEND_DIR at module load time,
+    # so checking once at request scope is fine. Wrap in noqa to silence
+    # async-purity warning for this trivial check.
+    index_path = Path(__file__).resolve().parent.parent / "frontend" / "index.html"  # noqa: ASYNC240
+    if index_path.exists():  # noqa: ASYNC240
         from fastapi.responses import RedirectResponse
 
         return RedirectResponse(url="/app/", status_code=307)
@@ -602,8 +597,8 @@ async def add_ccxt_def(
     """Persist a new CCXT-based broker and hot-register it."""
     try:
         import ccxt  # noqa: PLC0415
-    except ImportError:
-        raise HTTPException(status_code=400, detail="ccxt is not installed on this host")
+    except ImportError as exc:
+        raise HTTPException(status_code=400, detail="ccxt is not installed on this host") from exc
     if request.exchange not in ccxt.exchanges:
         raise HTTPException(
             status_code=400,
@@ -614,9 +609,7 @@ async def add_ccxt_def(
     from app.db.models import CustomBrokerDef  # noqa: PLC0415
 
     broker_type = f"ccxt:{request.exchange}"
-    existing = (
-        db.query(CustomBrokerDef).filter(CustomBrokerDef.broker_type == broker_type).first()
-    )
+    existing = db.query(CustomBrokerDef).filter(CustomBrokerDef.broker_type == broker_type).first()
     label = request.label or f"{request.exchange.title()} (via CCXT)"
     payload_json = json_dumps_safe({"exchange": request.exchange})
     if existing:
@@ -767,7 +760,10 @@ async def test_rest_def(request: _TestRestRequest):
     Lets the UI surface real error messages from the broker before the user
     clicks "Save".
     """
-    from app.brokers.generic_rest_adapter import GenericRestAdapter, GenericRestConfig  # noqa: PLC0415
+    from app.brokers.generic_rest_adapter import (  # noqa: PLC0415
+        GenericRestAdapter,
+        GenericRestConfig,
+    )
 
     try:
         GenericRestConfig(request.config)
@@ -780,11 +776,13 @@ async def test_rest_def(request: _TestRestRequest):
     )
     try:
         await adapter.authenticate()
-        balance = {}
+        balance: dict = {}
         try:
             balance = await adapter.get_account_balance()
-        except Exception:  # noqa: BLE001
-            pass
+        except Exception as exc:  # noqa: BLE001
+            # Auth succeeded but balance read failed — still return ok=True
+            # so the user knows credentials are accepted; surface the detail.
+            logger.info("Test-REST balance failed (auth ok): %s", exc)
         return {"ok": True, "balance": balance}
     except Exception as exc:  # noqa: BLE001
         return {"ok": False, "stage": "authenticate", "error": str(exc)}
@@ -794,12 +792,7 @@ async def test_rest_def(request: _TestRestRequest):
 
 def json_dumps_safe(payload: dict) -> str:
     """Defensive JSON dump that strips any non-serialisable values."""
-    import json  # noqa: PLC0415
-
-    def _default(o: Any) -> str:
-        return str(o)
-
-    return json.dumps(payload, default=_default)
+    return json.dumps(payload, default=str)
 
 
 @app.post(
@@ -861,10 +854,7 @@ async def setup_broker(
             broker_type=request.broker_type,
             environment=request.environment,
             created_at=datetime.utcnow(),
-            message=(
-                f"Successfully connected to {request.broker_type} "
-                f"({request.environment})"
-            ),
+            message=(f"Successfully connected to {request.broker_type} ({request.environment})"),
         )
 
     except (ValueError, BrokerConnectionError) as exc:
@@ -986,6 +976,7 @@ async def submit_order(
                     size=existing.size,
                     entry_price=existing.entry_price,
                     created_at=existing.timestamp,
+                    ml_score=None,
                     message=f"Replay: existing order {existing.order_id} returned",
                     risk_ratio=existing.risk_ratio,
                     idempotency_key=idem_key,
@@ -1053,9 +1044,7 @@ async def submit_order(
                     session_id=session_id,
                     action="ORDER_REJECTED",
                     symbol=request.symbol,
-                    details=(
-                        f"ML gate rejected: score {ml_score:.3f} < {ml_threshold}"
-                    ),
+                    details=(f"ML gate rejected: score {ml_score:.3f} < {ml_threshold}"),
                     severity="WARNING",
                 )
             )
@@ -1145,11 +1134,7 @@ async def submit_order(
             take_profit=request.take_profit,
             size=request.size,
             ml_score_at_submit=ml_score,
-            **{
-                k: v
-                for k, v in feature_snapshot.as_dict().items()
-                if k.startswith("f_")
-            },
+            **{k: v for k, v in feature_snapshot.as_dict().items() if k.startswith("f_")},
         )
         db.add(outcome_row)
 
@@ -1356,9 +1341,7 @@ async def close_order(
             closed_price=float(request.closed_price),
         )
 
-        outcome_row = (
-            db.query(TradeOutcome).filter(TradeOutcome.order_id == order_id).first()
-        )
+        outcome_row = db.query(TradeOutcome).filter(TradeOutcome.order_id == order_id).first()
         db.add(
             AuditLog(
                 session_id=session_id,
@@ -1453,9 +1436,7 @@ async def halt_session(
                     failed.append({"order_id": order.order_id, "error": str(exc)})
 
         # Flip the risk limit row to halted so the engine refuses new orders.
-        risk_limit = (
-            db.query(RiskLimit).filter(RiskLimit.session_id == session_id).first()
-        )
+        risk_limit = db.query(RiskLimit).filter(RiskLimit.session_id == session_id).first()
         if risk_limit:
             risk_limit.is_halted = True
 
@@ -1463,10 +1444,7 @@ async def halt_session(
             AuditLog(
                 session_id=session_id,
                 action="SESSION_HALTED",
-                details=(
-                    f"Emergency halt: {len(cancelled)} cancelled, "
-                    f"{len(failed)} failed"
-                ),
+                details=(f"Emergency halt: {len(cancelled)} cancelled, {len(failed)} failed"),
                 severity="CRITICAL",
             )
         )
@@ -1483,10 +1461,7 @@ async def halt_session(
             cancelled=cancelled,
             failed=failed,
             is_halted=True,
-            message=(
-                f"Halt executed: {len(cancelled)} order(s) cancelled, "
-                f"{len(failed)} failed"
-            ),
+            message=(f"Halt executed: {len(cancelled)} order(s) cancelled, {len(failed)} failed"),
         )
 
     except HTTPException:
@@ -1821,10 +1796,7 @@ async def macro_events(
             except ValueError as exc:
                 raise HTTPException(
                     status_code=400,
-                    detail=(
-                        "Unknown category. Allowed: "
-                        f"{[c.value for c in EventCategory]}"
-                    ),
+                    detail=(f"Unknown category. Allowed: {[c.value for c in EventCategory]}"),
                 ) from exc
             events = [e for e in events if e.category == cat]
 
@@ -1833,8 +1805,7 @@ async def macro_events(
             "count": len(events_sorted),
             "total": len(_macro_fetcher.events),
             "events": [
-                {**e.to_dict(), "score": _event_scorer.score_event(e)}
-                for e in events_sorted
+                {**e.to_dict(), "score": _event_scorer.score_event(e)} for e in events_sorted
             ],
         }
     except HTTPException:
@@ -1851,17 +1822,12 @@ async def macro_upcoming(hours: int = Query(72, ge=1, le=720)):
 
     now = datetime.utcnow()
     horizon = now + timedelta(hours=hours)
-    upcoming = [
-        e for e in _macro_fetcher.events if now <= e.timestamp <= horizon
-    ]
+    upcoming = [e for e in _macro_fetcher.events if now <= e.timestamp <= horizon]
     upcoming_sorted = sorted(upcoming, key=lambda e: e.timestamp)
     return {
         "count": len(upcoming_sorted),
         "horizon_hours": hours,
-        "events": [
-            {**e.to_dict(), "score": _event_scorer.score_event(e)}
-            for e in upcoming_sorted
-        ],
+        "events": [{**e.to_dict(), "score": _event_scorer.score_event(e)} for e in upcoming_sorted],
     }
 
 
@@ -2060,9 +2026,17 @@ class _BootstrapRequest(BaseModel):
 
 from app.autopilot import (  # noqa: E402
     TradingViewSignal,
+)
+from app.autopilot import (
     get_state as _ap_get_state,
+)
+from app.autopilot import (
     record as _ap_record,
+)
+from app.autopilot import (
     set_state as _ap_set_state,
+)
+from app.autopilot import (
     verify_secret as _ap_verify_secret,
 )
 
@@ -2157,9 +2131,7 @@ async def tradingview_webhook(
         _ap_record(decision)
         return decision
 
-    broker_session = (
-        db.query(BrokerSession).filter(BrokerSession.session_id == session_id).first()
-    )
+    broker_session = db.query(BrokerSession).filter(BrokerSession.session_id == session_id).first()
     if not broker_session:
         decision["decision"] = "rejected"
         decision["reasons"].append("configured session not found")
@@ -2194,9 +2166,7 @@ async def tradingview_webhook(
 
     if setup.grade not in state["require_grade"]:
         decision["decision"] = "rejected"
-        decision["reasons"].append(
-            f"grade {setup.grade} not in {state['require_grade']}"
-        )
+        decision["reasons"].append(f"grade {setup.grade} not in {state['require_grade']}")
         _ap_record(decision)
         return decision
 
@@ -2300,8 +2270,8 @@ async def ml_backtest(request: _MlBacktestRequest):
     wins = losses = skipped_lowscore = skipped_no_model = 0
     score_distribution: list[float] = []
 
-    for features, label in zip(X, y):
-        snap = FeatureSnapshot(**dict(zip(FEATURE_NAMES, features)))
+    for features, label in zip(X, y, strict=False):
+        snap = FeatureSnapshot(**dict(zip(FEATURE_NAMES, features, strict=False)))
         score = score_features(snap)
         if score is None:
             skipped_no_model += 1
@@ -2326,15 +2296,11 @@ async def ml_backtest(request: _MlBacktestRequest):
 
     trades_taken = wins + losses
     win_rate = (wins / trades_taken) if trades_taken else 0.0
-    expectancy_r = (
-        ((wins * request.rr) - losses) / trades_taken if trades_taken else 0.0
-    )
+    expectancy_r = ((wins * request.rr) - losses) / trades_taken if trades_taken else 0.0
     return {
         "starting_capital": float(request.starting_capital),
         "ending_capital": equity,
-        "roi_pct": (equity - request.starting_capital)
-        / request.starting_capital
-        * 100,
+        "roi_pct": (equity - request.starting_capital) / request.starting_capital * 100,
         "trades_taken": trades_taken,
         "trades_skipped": skipped_lowscore + skipped_no_model,
         "skipped_lowscore": skipped_lowscore,
@@ -2381,7 +2347,6 @@ class _WalkForwardRequest(BaseModel):
 async def ml_walkforward(request: _WalkForwardRequest):
     """Train an isolated model on the in-sample window, test on out-of-sample."""
     from app.ml.bootstrap import DEFAULT_SYMBOLS, build_synthetic_dataset  # noqa: PLC0415
-    from app.ml.service import FEATURE_NAMES, FeatureSnapshot  # noqa: PLC0415
 
     try:
         import torch  # noqa: PLC0415
@@ -2454,7 +2419,7 @@ async def ml_walkforward(request: _WalkForwardRequest):
         curve = [equity]
         risk_amount = equity * request.risk_per_trade_pct
         wins = losses = skipped = 0
-        for label, score in zip(y_slice, scores):
+        for label, score in zip(y_slice, scores, strict=False):
             if score < request.threshold:
                 skipped += 1
                 curve.append(equity)
@@ -2531,7 +2496,7 @@ def _walkforward_verdict(in_sample: dict, out_sample: dict) -> str:
     if in_roi > 0 and out_roi >= in_roi * 0.4:
         return (
             f"PROMISING: in-sample {in_roi:+.1f}% / out-of-sample {out_roi:+.1f}% "
-            f"({out_sample['win_rate']*100:.0f}% win rate). Still validate live with small size."
+            f"({out_sample['win_rate'] * 100:.0f}% win rate). Still validate live with small size."
         )
     return (
         f"WEAK SIGNAL: in {in_roi:+.1f}% / out {out_roi:+.1f}%. "
@@ -2620,14 +2585,28 @@ async def ml_outcomes(
                 "created_at": r.created_at.isoformat(),
                 "closed_at": r.closed_at.isoformat() if r.closed_at else None,
                 "features": {
-                    name: getattr(r, name) for name in (
-                        "f_structural_level", "f_liquidity_sweep", "f_momentum",
-                        "f_volume", "f_risk_reward", "f_macro_alignment", "f_on_chain",
-                        "f_volatility", "f_trend_strength", "f_drawdown",
-                        "f_time_since_trade", "f_correlation_spy",
-                        "f_position_size", "f_margin_util", "f_concurrent_trades",
-                        "f_losing_streak", "f_profit_distance", "f_mtf_alignment",
-                        "f_price_action", "f_confluence",
+                    name: getattr(r, name)
+                    for name in (
+                        "f_structural_level",
+                        "f_liquidity_sweep",
+                        "f_momentum",
+                        "f_volume",
+                        "f_risk_reward",
+                        "f_macro_alignment",
+                        "f_on_chain",
+                        "f_volatility",
+                        "f_trend_strength",
+                        "f_drawdown",
+                        "f_time_since_trade",
+                        "f_correlation_spy",
+                        "f_position_size",
+                        "f_margin_util",
+                        "f_concurrent_trades",
+                        "f_losing_streak",
+                        "f_profit_distance",
+                        "f_mtf_alignment",
+                        "f_price_action",
+                        "f_confluence",
                     )
                 },
             }

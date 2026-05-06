@@ -23,9 +23,10 @@ from __future__ import annotations
 import importlib
 import importlib.util
 import logging
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Awaitable, Callable, Iterable
+from typing import Any
 
 from .broker_interface import BrokerAdapter
 
@@ -121,9 +122,7 @@ class BrokerRegistry:
     def create(self, broker_type: str, credentials: dict, **config: Any) -> BrokerAdapter:
         entry = self.get(broker_type)
         if entry is None:
-            raise ValueError(
-                f"Unknown broker type '{broker_type}'. Known: {self.known_types()}"
-            )
+            raise ValueError(f"Unknown broker type '{broker_type}'. Known: {self.known_types()}")
         return entry.factory(credentials, **config)
 
     # ----- Plugin discovery -------------------------------------------------
@@ -250,9 +249,7 @@ def _register_builtins(registry: BrokerRegistry) -> None:
             )
         )
     except ImportError as exc:
-        logger.info(
-            "Hyperliquid not registered (optional deps missing: %s)", exc
-        )
+        logger.info("Hyperliquid not registered (optional deps missing: %s)", exc)
 
 
 _register_builtins(REGISTRY)

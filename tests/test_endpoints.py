@@ -92,10 +92,13 @@ class TestHealthEndpoints:
         assert response.json()["version"] == "4.0.0"
 
     def test_root_endpoint(self, test_client: TestClient):
-        """Test root endpoint."""
-        response = test_client.get("/")
-        assert response.status_code == 200
-        assert response.json()["name"] == "Trade-Claw API"
+        """Root either returns metadata JSON or redirects to the bundled UI."""
+        response = test_client.get("/", follow_redirects=False)
+        assert response.status_code in (200, 307)
+        if response.status_code == 307:
+            assert response.headers["location"].endswith("/app/")
+        else:
+            assert response.json()["name"] == "Trade-Claw API"
 
 
 class TestBrokerSetup:

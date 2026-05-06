@@ -13,8 +13,8 @@ class CorrelationRequest(BaseModel):
     assets: list[str] = Field(
         ...,
         description="List of asset symbols (e.g., ['GLD', 'SLV', 'EUR/USD'])",
-        min_items=2,
-        max_items=10,
+        min_length=2,
+        max_length=10,
     )
     threshold: float = Field(
         default=0.7,

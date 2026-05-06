@@ -34,11 +34,16 @@ _DYNAMIC_KEYS: set[str] = set()
 
 def _credentials_from_config(cfg: dict) -> tuple[CredentialField, ...]:
     """Pull a CredentialField list out of a saved config (or build defaults)."""
-    raw_creds = (cfg.get("credentials") or [])
+    raw_creds = cfg.get("credentials") or []
     if not raw_creds:
         return (
             CredentialField(name="api_key", secret=False, placeholder="API key"),
-            CredentialField(name="secret_key", required=False, secret=True, placeholder="API secret (if applicable)"),
+            CredentialField(
+                name="secret_key",
+                required=False,
+                secret=True,
+                placeholder="API secret (if applicable)",
+            ),
         )
     out: list[CredentialField] = []
     for c in raw_creds:

@@ -188,7 +188,8 @@ class GenericRestConfig:
                 "authenticate": {"method": "GET", "path": "/account"},
                 "quote": {"method": "GET", "path": "/quote/{symbol}"},
                 "submit_order": {
-                    "method": "POST", "path": "/orders",
+                    "method": "POST",
+                    "path": "/orders",
                     "body_template": {
                         "symbol": "{symbol}",
                         "side": "{side_lower}",
@@ -312,7 +313,9 @@ class GenericRestAdapter(BrokerAdapter):
 
         session = await self._http()
         try:
-            async with session.request(method, url, json=body, headers=headers, timeout=aiohttp.ClientTimeout(total=15)) as r:
+            async with session.request(
+                method, url, json=body, headers=headers, timeout=aiohttp.ClientTimeout(total=15)
+            ) as r:
                 text = await r.text()
                 if r.status >= 500:
                     raise BrokerError(f"{endpoint_key}: HTTP {r.status} — {text[:200]}")
@@ -322,6 +325,7 @@ class GenericRestAdapter(BrokerAdapter):
                     return {}
                 try:
                     import json  # noqa: PLC0415
+
                     return json.loads(text)
                 except Exception:
                     return {"_raw": text}
@@ -393,7 +397,9 @@ class GenericRestAdapter(BrokerAdapter):
             quantity=float(_get_path(data, paths.get("quantity"), 0)),
             filled_quantity=float(_get_path(data, paths.get("filled_quantity"), 0)),
             average_fill_price=(
-                float(_get_path(data, paths.get("average_fill_price"))) if _get_path(data, paths.get("average_fill_price")) else None
+                float(_get_path(data, paths.get("average_fill_price")))
+                if _get_path(data, paths.get("average_fill_price"))
+                else None
             ),
             status=status,
         )
@@ -425,8 +431,12 @@ class GenericRestAdapter(BrokerAdapter):
                         average_price=float(_get_path(p, paths.get("average_price"), 0)),
                         current_price=float(_get_path(p, paths.get("current_price"), 0)),
                         unrealized_pnl=float(_get_path(p, paths.get("unrealized_pnl"), 0)),
-                        unrealized_pnl_percent=float(_get_path(p, paths.get("unrealized_pnl_percent"), 0)),
-                        side=OrderDirection.BUY if "long" in side_str or "buy" in side_str else OrderDirection.SELL,
+                        unrealized_pnl_percent=float(
+                            _get_path(p, paths.get("unrealized_pnl_percent"), 0)
+                        ),
+                        side=OrderDirection.BUY
+                        if "long" in side_str or "buy" in side_str
+                        else OrderDirection.SELL,
                         last_updated=datetime.utcnow(),
                     )
                 )
@@ -478,7 +488,11 @@ def _expand_body(template: Any, vars_: dict[str, Any]) -> Any:
         except (TypeError, ValueError):
             return s
     if isinstance(template, dict):
-        return {k: _expand_body(v, vars_) for k, v in template.items() if _expand_body(v, vars_) is not None}
+        return {
+            k: _expand_body(v, vars_)
+            for k, v in template.items()
+            if _expand_body(v, vars_) is not None
+        }
     if isinstance(template, list):
         return [_expand_body(v, vars_) for v in template]
     return template

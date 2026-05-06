@@ -275,7 +275,6 @@ class AuditSummary:
     @staticmethod
     def summary_by_action(audit_log: AuditLog, hours: int = 24) -> dict[str, int]:
         """Count events by action in last N hours"""
-        from datetime import timedelta
 
         cutoff = datetime.now(UTC) - timedelta(hours=hours)
         events = [e for e in audit_log.memory_events if e.timestamp >= cutoff]

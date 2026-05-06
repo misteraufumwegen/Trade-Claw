@@ -72,7 +72,9 @@ class TestSessionRouter:
         session = await router.get_session("test_user")
         assert session is not None
         assert session.user_id == "test_user"
-        assert session.broker_type == BrokerType.MOCK
+        # broker_type is now a normalised string (was BrokerType enum) so
+        # plugins like ccxt:binance can co-exist with the legacy types.
+        assert session.broker_type == BrokerType.MOCK.value
         assert session.api_adapter is not None
 
     @pytest.mark.asyncio

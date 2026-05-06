@@ -163,13 +163,18 @@ class TestMockBroker:
 
     @pytest.mark.asyncio
     async def test_rejection_scenario(self):
-        """Test order rejection"""
+        """Test order rejection."""
+        # Seed the rejection RNG so CI doesn't see the ~10% false-failure
+        # rate of the original probabilistic test.
+        import random as _random
+
+        _random.seed(0xC0FFEE)
         broker = MockBrokerScenarios.with_rejections()
         await broker.authenticate()
 
         # Try multiple orders, some should be rejected
         rejected_count = 0
-        for _i in range(10):
+        for _i in range(20):
             order = Order(
                 order_id=None,
                 symbol="EUR_USD",
@@ -183,9 +188,9 @@ class TestMockBroker:
             except Exception:
                 rejected_count += 1
 
-        # Should have some rejections
+        # Should have some rejections (deterministic with the seed above)
         assert rejected_count > 0
-        assert rejected_count < 10
+        assert rejected_count < 20
 
 
 class TestBrokerInterface:

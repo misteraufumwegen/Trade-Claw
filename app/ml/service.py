@@ -27,7 +27,6 @@ Design notes:
 from __future__ import annotations
 
 import logging
-import os
 from dataclasses import asdict, dataclass
 from datetime import datetime
 from pathlib import Path
@@ -36,7 +35,7 @@ from typing import TYPE_CHECKING
 logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:  # pragma: no cover
-    from sqlalchemy.orm import Session
+    pass
 
 # Feature names — order matters: the model takes a fixed-shape vector.
 FEATURE_NAMES: tuple[str, ...] = (

@@ -250,9 +250,7 @@ class MockBrokerAdapter(BrokerAdapter):
         # reality at the next poll.
         if order.symbol in self.positions:
             self.positions.pop(order.symbol, None)
-        logger.info(
-            "Mock settlement: %s %s @ %s (%s)", order_id, label, closed_price, order.symbol
-        )
+        logger.info("Mock settlement: %s %s @ %s (%s)", order_id, label, closed_price, order.symbol)
 
     async def _simulate_limit_fill(self, order_id: str):
         """Simulate limit order (may never fill in mock)"""

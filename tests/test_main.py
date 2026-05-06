@@ -47,11 +47,18 @@ def test_health(client: TestClient) -> None:
 
 
 def test_root(client: TestClient) -> None:
-    r = client.get("/")
-    assert r.status_code == 200
-    body = r.json()
-    assert body["name"] == "Trade-Claw API"
-    assert body["docs"] == "/docs"
+    # When the bundled UI is present (it is in this repo), `/` redirects to
+    # /app/ instead of returning JSON. We disable redirect-following so we
+    # can assert on the redirect itself; the JSON-fallback case is exercised
+    # in environments without the frontend directory.
+    r = client.get("/", follow_redirects=False)
+    assert r.status_code in (200, 307)
+    if r.status_code == 307:
+        assert r.headers["location"].endswith("/app/")
+    else:
+        body = r.json()
+        assert body["name"] == "Trade-Claw API"
+        assert body["docs"] == "/docs"
 
 
 # ---------------------------------------------------------------------------

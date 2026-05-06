@@ -34,7 +34,6 @@ from app.brokers.broker_interface import (
     AuthenticationError,
     BrokerAdapter,
     BrokerError,
-    InvalidOrderError,
     Order,
     OrderDirection,
     OrderRejectedError,
@@ -52,18 +51,18 @@ logger = logging.getLogger(__name__)
 # but exposing all 100+ would just clutter the dropdown — the user can extend
 # this list (or call ``ccxt.exchanges`` directly) if they need a niche venue.
 _EXCHANGE_METADATA: tuple[tuple[str, str, tuple[str, ...]], ...] = (
-    ("binance",   "Binance",            ("crypto", "spot", "perpetuals")),
-    ("kraken",    "Kraken",             ("crypto", "spot", "futures")),
-    ("coinbase",  "Coinbase Advanced",  ("crypto", "spot")),
-    ("bybit",     "Bybit",              ("crypto", "spot", "perpetuals")),
-    ("okx",       "OKX",                ("crypto", "spot", "perpetuals")),
-    ("kucoin",    "KuCoin",             ("crypto", "spot", "futures")),
-    ("bitfinex",  "Bitfinex",           ("crypto", "spot", "margin")),
-    ("huobi",     "HTX (Huobi)",        ("crypto", "spot", "futures")),
-    ("gate",      "Gate.io",            ("crypto", "spot", "futures")),
-    ("mexc",      "MEXC",               ("crypto", "spot", "futures")),
-    ("bingx",     "BingX",              ("crypto", "spot", "perpetuals")),
-    ("bitget",    "Bitget",             ("crypto", "spot", "perpetuals")),
+    ("binance", "Binance", ("crypto", "spot", "perpetuals")),
+    ("kraken", "Kraken", ("crypto", "spot", "futures")),
+    ("coinbase", "Coinbase Advanced", ("crypto", "spot")),
+    ("bybit", "Bybit", ("crypto", "spot", "perpetuals")),
+    ("okx", "OKX", ("crypto", "spot", "perpetuals")),
+    ("kucoin", "KuCoin", ("crypto", "spot", "futures")),
+    ("bitfinex", "Bitfinex", ("crypto", "spot", "margin")),
+    ("huobi", "HTX (Huobi)", ("crypto", "spot", "futures")),
+    ("gate", "Gate.io", ("crypto", "spot", "futures")),
+    ("mexc", "MEXC", ("crypto", "spot", "futures")),
+    ("bingx", "BingX", ("crypto", "spot", "perpetuals")),
+    ("bitget", "Bitget", ("crypto", "spot", "perpetuals")),
 )
 
 
@@ -270,7 +269,9 @@ class CcxtAdapter(BrokerAdapter):
             direction=OrderDirection.BUY
             if (result.get("side") or "").lower() == "buy"
             else OrderDirection.SELL,
-            order_type=OrderType.LIMIT if (result.get("type") or "").lower() == "limit" else OrderType.MARKET,
+            order_type=OrderType.LIMIT
+            if (result.get("type") or "").lower() == "limit"
+            else OrderType.MARKET,
             quantity=float(result.get("amount") or 0),
             price=float(result.get("price")) if result.get("price") else None,
             filled_quantity=float(result.get("filled") or 0),
@@ -306,7 +307,9 @@ class CcxtAdapter(BrokerAdapter):
                         current_price=float(p.get("markPrice") or 0),
                         unrealized_pnl=float(p.get("unrealizedPnl") or 0),
                         unrealized_pnl_percent=float(p.get("percentage") or 0),
-                        side=OrderDirection.BUY if (p.get("side") or "").lower() == "long" else OrderDirection.SELL,
+                        side=OrderDirection.BUY
+                        if (p.get("side") or "").lower() == "long"
+                        else OrderDirection.SELL,
                         last_updated=datetime.utcnow(),
                     )
                 )
@@ -329,23 +332,22 @@ class CcxtAdapter(BrokerAdapter):
         # CCXT returns nested {currency: {free, used, total}} + a 'total' map.
         totals = bal.get("total") or {}
         usd_balance = float(totals.get("USDT") or totals.get("USD") or 0)
+        # Return only the canonical numeric fields here; the full ``totals``
+        # dict is non-numeric and would break the BrokerAdapter contract.
         return {
             "balance": usd_balance,
             "equity": usd_balance,
             "margin_available": usd_balance,
             "margin_used": 0.0,
-            "raw": totals,
         }
 
     async def stream_prices(self, symbols: list[str], callback) -> None:
         # CCXT-pro supports websockets but is a separate package. For now we
         # raise a clear error so callers can fall back to polling get_quote.
-        raise NotImplementedError(
-            "Websocket streaming requires ccxt-pro. Poll get_quote instead."
-        )
+        raise NotImplementedError("Websocket streaming requires ccxt-pro. Poll get_quote instead.")
 
     async def disconnect(self) -> None:
         try:
             await self._call(self.exchange.close)
-        except Exception:  # noqa: BLE001
-            pass
+        except Exception as exc:  # noqa: BLE001
+            logger.debug("CCXT close raised on disconnect: %s", exc)

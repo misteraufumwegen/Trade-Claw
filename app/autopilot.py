@@ -123,7 +123,7 @@ class TradingViewSignal:
     raw: dict[str, Any] = field(default_factory=dict)
 
     @classmethod
-    def from_payload(cls, body: dict) -> "TradingViewSignal":
+    def from_payload(cls, body: dict) -> TradingViewSignal:
         side = str(body.get("side", body.get("action", ""))).upper().strip()
         if side in {"LONG", "BUY"}:
             side = "BUY"

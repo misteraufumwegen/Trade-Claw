@@ -17,7 +17,6 @@ from typing import Any
 
 from app.api.order_api_adapter import OrderAPIAdapter
 from app.brokers.broker_interface import BrokerAdapter
-from app.brokers.mock_broker import MockBrokerAdapter
 from app.security.audit import AuditLog
 
 logger = logging.getLogger("BrokerSessionRouter")
@@ -57,7 +56,9 @@ class BrokerSession:
         self.session_id = session_id
         # Normalised to a string so plugins like ``ccxt:binance`` can live
         # alongside the legacy enum values.
-        self.broker_type = broker_type.value if isinstance(broker_type, BrokerType) else str(broker_type)
+        self.broker_type = (
+            broker_type.value if isinstance(broker_type, BrokerType) else str(broker_type)
+        )
         self.broker = broker
         self.user_id = user_id
         self.created_at = created_at or datetime.utcnow()

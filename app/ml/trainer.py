@@ -17,10 +17,11 @@ from __future__ import annotations
 
 import json
 import logging
+from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import TYPE_CHECKING, Sequence
+from typing import TYPE_CHECKING
 
 from .service import FEATURE_NAMES, _default_checkpoint_path, initialize_model
 
@@ -64,14 +65,10 @@ def _label_for_outcome(outcome: str) -> float | None:
     return None
 
 
-def _collect_training_data(db: "Session") -> tuple[list[list[float]], list[float]]:
+def _collect_training_data(db: Session) -> tuple[list[list[float]], list[float]]:
     from app.db.models import TradeOutcome  # noqa: PLC0415
 
-    rows = (
-        db.query(TradeOutcome)
-        .filter(TradeOutcome.outcome.in_(["WIN", "LOSS"]))
-        .all()
-    )
+    rows = db.query(TradeOutcome).filter(TradeOutcome.outcome.in_(["WIN", "LOSS"])).all()
     X: list[list[float]] = []
     y: list[float] = []
     for row in rows:
@@ -84,7 +81,7 @@ def _collect_training_data(db: "Session") -> tuple[list[list[float]], list[float
 
 
 def train_from_outcomes(
-    db: "Session",
+    db: Session,
     *,
     epochs: int = 200,
     learning_rate: float = 1e-3,
@@ -104,8 +101,7 @@ def train_from_outcomes(
         from ml_bot_phase1.src.models.setup_scorer import SetupQualityScorer  # noqa: PLC0415
     except ImportError as exc:
         raise RuntimeError(
-            "PyTorch is not installed; cannot retrain. Run "
-            "'pip install -r requirements.txt'."
+            "PyTorch is not installed; cannot retrain. Run 'pip install -r requirements.txt'."
         ) from exc
 
     X, y = _collect_training_data(db)
@@ -122,9 +118,7 @@ def train_from_outcomes(
     wins = int(sum(y))
     losses = len(y) - wins
     if wins == 0 or losses == 0:
-        raise ValueError(
-            f"Need both wins and losses to train (wins={wins}, losses={losses})."
-        )
+        raise ValueError(f"Need both wins and losses to train (wins={wins}, losses={losses}).")
 
     Xt = torch.tensor(X, dtype=torch.float32)
     yt = torch.tensor(y, dtype=torch.float32).unsqueeze(1)
@@ -220,9 +214,7 @@ def list_checkpoints() -> list[dict]:
                 meta = json.loads(meta_path.read_text())
             except Exception:  # noqa: BLE001
                 meta = {}
-        is_active = (
-            active_bytes is not None and ckpt.read_bytes() == active_bytes
-        )
+        is_active = active_bytes is not None and ckpt.read_bytes() == active_bytes
         out.append(
             {
                 "checkpoint": ckpt.name,

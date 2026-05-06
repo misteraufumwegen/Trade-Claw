@@ -6,6 +6,12 @@ on:
   pull_request:
     branches: [main, master, develop]
 
+env:
+  # Opt in to Node.js 24 for JavaScript actions ahead of GitHub's June 2026
+  # default switch. Silences the "Node.js 20 is deprecated" notice and
+  # keeps the workflow forward-compatible.
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
 jobs:
   lint:
     name: Lint & Type-check
@@ -64,7 +70,9 @@ jobs:
         run: pytest --timeout=60 --cov=app --cov-report=xml --cov-report=term
 
       - name: Upload coverage
-        if: always()
+        # Only upload when the artifact actually exists; otherwise the
+        # action emits a warning that pollutes the run summary.
+        if: always() && hashFiles('coverage.xml') != ''
         uses: actions/upload-artifact@v4
         with:
           name: coverage-xml
