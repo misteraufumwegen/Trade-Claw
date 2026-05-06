@@ -142,6 +142,8 @@ class OrderAPIAdapter:
         )
         order.metadata = {
             "take_profit": request.take_profit,
+            "stop_loss": request.stop_loss,
+            "entry_price": request.entry_price,
             "api_request": request.metadata,
             "submitted_at": datetime.utcnow().isoformat(),
         }

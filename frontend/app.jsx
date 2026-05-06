@@ -56,10 +56,38 @@ function SetupModal({ open, onClose, onDone }) {
   const [healthy, setHealthy] = useState(null);
   const [busy, setBusy] = useState(false);
 
-  // New session form
+  // New session form — broker types discovered from backend on open
   const [brokerType, setBrokerType] = useState(Config.brokerType || 'mock');
   const [environment, setEnvironment] = useState(Config.environment || 'paper');
-  const [credsJson, setCredsJson] = useState('{\n  "api_key": "your-key-here",\n  "secret_key": "..."\n}');
+  const [brokerCatalog, setBrokerCatalog] = useState([]);
+  const [credValues, setCredValues] = useState({});
+
+  useEffect(() => {
+    if (!open) return;
+    Api.brokerTypes()
+      .then(d => {
+        setBrokerCatalog(d.brokers || []);
+        if (!d.brokers.find(b => b.broker_type === brokerType) && d.brokers.length) {
+          setBrokerType(d.brokers[0].broker_type);
+        }
+      })
+      .catch(e => toast.push('error', `Broker-Typen laden: ${e.message}`));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
+
+  const currentBroker = brokerCatalog.find(b => b.broker_type === brokerType);
+
+  // Reset credential values when the selected broker changes so we don't
+  // accidentally send Hyperliquid creds to Binance.
+  useEffect(() => {
+    if (!currentBroker) return;
+    setCredValues(v => {
+      const next = {};
+      for (const f of currentBroker.credentials) next[f.name] = v[f.name] || '';
+      return next;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [brokerType]);
 
   const checkHealth = useCallback(async () => {
     Config.baseUrl = baseUrl;
@@ -77,9 +105,20 @@ function SetupModal({ open, onClose, onDone }) {
     setBusy(true);
     try {
       Config.baseUrl = baseUrl; Config.apiKey = apiKey;
-      let credentials;
-      try { credentials = JSON.parse(credsJson); }
-      catch { throw new Error('Credentials sind kein gültiges JSON'); }
+      // Build credentials dict from the dynamic form, dropping empty optional fields.
+      const credentials = {};
+      const missing = [];
+      for (const f of currentBroker?.credentials || []) {
+        const v = (credValues[f.name] || '').trim();
+        if (v) credentials[f.name] = v;
+        else if (f.required) missing.push(f.name);
+      }
+      if (missing.length) throw new Error(`Pflichtfelder fehlen: ${missing.join(', ')}`);
+      if (Object.keys(credentials).length === 0) {
+        // Mock broker accepts empty credentials but the API rejects empty objects;
+        // pass a placeholder so validation goes through.
+        credentials.api_key = 'auto';
+      }
       if (environment === 'live') {
         const ok = confirm(
           'WARNUNG: Live-Modus mit echtem Geld.\n\n' +
@@ -149,26 +188,44 @@ function SetupModal({ open, onClose, onDone }) {
         {tab === 'new-session' && (
           <>
             <div className="field-group mb-16">
-              <label className="t-label">Broker</label>
+              <label className="t-label">Broker / Provider</label>
               <select className="select" value={brokerType} onChange={e => setBrokerType(e.target.value)}>
-                <option value="mock">Mock (Testing)</option>
-                <option value="alpaca">Alpaca</option>
-                <option value="oanda">OANDA</option>
-                <option value="hyperliquid">Hyperliquid</option>
+                {Object.entries(
+                  brokerCatalog.reduce((acc, b) => {
+                    (acc[b.category] = acc[b.category] || []).push(b);
+                    return acc;
+                  }, {})
+                ).map(([cat, list]) => (
+                  <optgroup key={cat} label={cat.toUpperCase()}>
+                    {list.map(b => (
+                      <option key={b.broker_type} value={b.broker_type}>
+                        {b.label}{b.tags?.length ? `  ·  ${b.tags.join(', ')}` : ''}
+                      </option>
+                    ))}
+                  </optgroup>
+                ))}
               </select>
+              {currentBroker && (
+                <div className="field-hint" style={{ marginTop: 6 }}>{currentBroker.description}</div>
+              )}
+              <div className="field-hint" style={{ marginTop: 4, opacity: 0.7 }}>
+                Eigenen Broker hinzufügen? Plugin in <span className="t-mono">app/brokers/plugins/</span> ablegen — Anleitung in <span className="t-mono">docs/CUSTOM_BROKERS.md</span>.
+              </div>
             </div>
 
             <div className="field-group mb-16">
               <label className="t-label">Modus</label>
               <div className="row" style={{ gap: 8 }}>
                 {[
-                  ['paper', 'Paper / Demo', 'Sandbox · kein echtes Geld'],
-                  ['live',  'Live · echtes Geld', 'Order-Routing an realen Account'],
-                ].map(([k, l, sub]) => (
-                  <button key={k} type="button" onClick={() => setEnvironment(k)}
+                  ['paper', 'Paper / Demo', 'Sandbox · kein echtes Geld', currentBroker?.paper_supported !== false],
+                  ['live',  'Live · echtes Geld', 'Order-Routing an realen Account', currentBroker?.live_supported !== false],
+                ].map(([k, l, sub, supported]) => (
+                  <button key={k} type="button"
+                    onClick={() => supported && setEnvironment(k)}
+                    disabled={!supported}
                     className={`btn ${environment===k ? (k==='live'?'btn-danger':'btn-primary') : 'btn-secondary'}`}
-                    style={{ flex: 1, textAlign: 'left', padding: '10px 12px' }}>
-                    <div><b>{l}</b></div>
+                    style={{ flex: 1, textAlign: 'left', padding: '10px 12px', opacity: supported ? 1 : 0.5 }}>
+                    <div><b>{l}{!supported ? ' (nicht verfügbar)' : ''}</b></div>
                     <div className="t-body-sm" style={{ opacity: 0.85 }}>{sub}</div>
                   </button>
                 ))}
@@ -183,28 +240,27 @@ function SetupModal({ open, onClose, onDone }) {
               )}
             </div>
 
-            {brokerType !== 'mock' && (
-              <div className="alert-banner alert-info mb-16">
-                <Icon name="bell"/>
-                <div>
-                  <div><b>Hinweis zu Credentials:</b></div>
-                  {brokerType === 'hyperliquid' && (
-                    <div className="t-body-sm">{`{ "api_key": "<wallet 0x…>", "secret_key": "<eth privkey>" }`}</div>
-                  )}
-                  {brokerType === 'alpaca' && (
-                    <div className="t-body-sm">{`{ "api_key": "<key>", "secret_key": "<secret>" }`}</div>
-                  )}
-                  {brokerType === 'oanda' && (
-                    <div className="t-body-sm">{`{ "api_key": "<token>", "account_id": "<acct>" }`}</div>
-                  )}
-                </div>
+            {currentBroker && currentBroker.credentials.length > 0 && (
+              <div className="field-group mb-16">
+                <label className="t-label">Credentials</label>
+                {currentBroker.credentials.map(f => (
+                  <div key={f.name} style={{ marginBottom: 10 }}>
+                    <label className="t-label" style={{ fontSize: 11, opacity: 0.7 }}>
+                      {f.name}{f.required ? '' : '  (optional)'}
+                    </label>
+                    <input
+                      className="input mono"
+                      type={f.secret ? 'password' : 'text'}
+                      placeholder={f.placeholder}
+                      value={credValues[f.name] || ''}
+                      onChange={e => setCredValues(v => ({ ...v, [f.name]: e.target.value }))}
+                    />
+                    {f.help && <div className="field-hint">{f.help}</div>}
+                  </div>
+                ))}
               </div>
             )}
 
-            <div className="field-group mb-16">
-              <label className="t-label">Credentials (JSON)</label>
-              <textarea className="input mono" rows={5} value={credsJson} onChange={e => setCredsJson(e.target.value)} style={{ resize: 'vertical' }} />
-            </div>
             <div className="row gap-8">
               <button className="btn btn-secondary" style={{ flex: 1 }} onClick={onClose}>Abbrechen</button>
               <button className={`btn ${environment==='live' ? 'btn-danger' : 'btn-primary'}`} style={{ flex: 2 }} onClick={createSession} disabled={busy || !apiKey}>
@@ -1035,6 +1091,823 @@ function GraderPage() {
   );
 }
 
+// ─── ML & Autopilot Page ───────────────────────────────────
+function MlAutopilotPage() {
+  const toast = useToast();
+  const [mlState, setMlState] = useState(null);
+  const [outcomes, setOutcomes] = useState({ items: [], total: 0, summary: {} });
+  const [autopilot, setAutopilot] = useState(null);
+  const [checkpoints, setCheckpoints] = useState([]);
+  const [busy, setBusy] = useState({});
+  const [bootstrapForm, setBootstrapForm] = useState({ period: '2y', epochs: 200 });
+  const [closeForm, setCloseForm] = useState({});
+
+  const refresh = useCallback(async () => {
+    try {
+      const [s, o, a, c] = await Promise.all([
+        Api.mlStatus(),
+        Api.mlOutcomes({ limit: 100 }),
+        Api.autopilotStatus(),
+        Api.mlCheckpoints(),
+      ]);
+      setMlState(s); setOutcomes(o); setAutopilot(a); setCheckpoints(c.checkpoints || []);
+    } catch (e) {
+      toast.push('error', `Reload: ${e.message}`);
+    }
+  }, [toast]);
+
+  useEffect(() => { refresh(); }, [refresh]);
+
+  const setBusyKey = (k, v) => setBusy(b => ({ ...b, [k]: v }));
+
+  const retrain = async () => {
+    setBusyKey('retrain', true);
+    try {
+      const r = await Api.mlRetrain({ epochs: 200, activate: true });
+      toast.push('success', `Retrain ✓ samples=${r.samples} acc=${(r.final_accuracy*100).toFixed(1)}%`);
+      await refresh();
+    } catch (e) { toast.push('error', e.message); }
+    finally { setBusyKey('retrain', false); }
+  };
+
+  const bootstrap = async () => {
+    setBusyKey('bootstrap', true);
+    try {
+      const r = await Api.mlBootstrap({
+        period: bootstrapForm.period,
+        epochs: parseInt(bootstrapForm.epochs) || 200,
+      });
+      toast.push('success',
+        `Bootstrap ✓ ${r.samples} Samples · ${r.symbols_processed.length} Symbols · acc=${(r.final_accuracy*100).toFixed(1)}%`);
+      await refresh();
+    } catch (e) { toast.push('error', `Bootstrap: ${e.message}`); }
+    finally { setBusyKey('bootstrap', false); }
+  };
+
+  const setAutopilotMode = async mode => {
+    if (mode === 'live') {
+      const ok = confirm(
+        'AUTOPILOT auf LIVE schalten?\n\n' +
+        'Eingehende TradingView-Signale werden automatisch zu Orders. ' +
+        'Risk-Engine + ML-Gate filtern weiterhin, aber es gibt keine manuelle Bestätigung mehr pro Trade.'
+      );
+      if (!ok) return;
+    }
+    try {
+      const r = await Api.autopilotConfigure({
+        mode,
+        session_id: Config.sessionId,
+        threshold: autopilot?.threshold ?? 0.5,
+      });
+      setAutopilot(r);
+      toast.push(mode === 'live' ? 'warn' : 'info', `Autopilot: ${mode}`);
+    } catch (e) { toast.push('error', e.message); }
+  };
+
+  const closeTrade = async (orderId) => {
+    const price = parseFloat(closeForm[orderId]);
+    if (!price || price <= 0) { toast.push('warn', 'Schlusskurs eingeben'); return; }
+    try {
+      await Api.closeOrder(orderId, { closed_price: price });
+      toast.push('success', `Order ${orderId.slice(0,8)}… geschlossen`);
+      await refresh();
+    } catch (e) { toast.push('error', e.message); }
+  };
+
+  const outcomeBadge = o => o === 'WIN' ? 'success' : o === 'LOSS' ? 'danger' : 'neutral';
+
+  return (
+    <div className="page">
+      <div className="page-head">
+        <div>
+          <div className="breadcrumb">SELF-LEARNING</div>
+          <h1 className="t-h1">ML &amp; Autopilot</h1>
+        </div>
+        <button className="btn btn-secondary btn-sm" onClick={refresh}><Icon name="refresh"/> Reload</button>
+      </div>
+
+      <div className="grid mb-16" style={{ gridTemplateColumns: '1fr 1fr' }}>
+        <Card title="Modell-Status">
+          {mlState ? (
+            <KvList items={[
+              ['Model loaded', mlState.model_loaded ? '✓ ja' : '— nein'],
+              ['Torch verfügbar', mlState.torch_available ? '✓' : '✗'],
+              ['Checkpoint', mlState.checkpoint_path?.split(/[\\/]/).pop() || '—'],
+              ['Geladen seit', mlState.loaded_at ? new Date(mlState.loaded_at).toLocaleString('de-DE') : '—'],
+              ['Gate-Modus', mlState.gate_mode],
+              ['Threshold', mlState.threshold?.toFixed?.(2) ?? '—'],
+              ['Features', `${mlState.feature_count} Werte`],
+            ]}/>
+          ) : <div className="t-body text-muted">Lade…</div>}
+          <div className="row gap-8 mt-16">
+            <button className="btn btn-primary btn-sm" onClick={retrain} disabled={busy.retrain}>
+              <Icon name="zap"/> {busy.retrain ? 'Trainiere…' : 'Auf Outcomes neu trainieren'}
+            </button>
+          </div>
+        </Card>
+
+        <Card title="Autopilot">
+          {autopilot ? (
+            <>
+              <div className="row gap-8 mb-16">
+                {[
+                  ['off', 'Aus', 'btn-secondary'],
+                  ['dry_run', 'Dry-Run', 'btn-primary'],
+                  ['live', 'LIVE', 'btn-danger'],
+                ].map(([k, l, cls]) => (
+                  <button key={k} type="button"
+                    className={`btn ${autopilot.mode === k ? cls : 'btn-ghost'} btn-sm`}
+                    onClick={() => setAutopilotMode(k)} style={{ flex: 1 }}>
+                    {l}
+                  </button>
+                ))}
+              </div>
+              <KvList items={[
+                ['Status', autopilot.mode.toUpperCase()],
+                ['Session', autopilot.session_id?.slice(0, 12) + '…' || '—'],
+                ['Threshold', autopilot.threshold?.toFixed(2)],
+                ['Erlaubte Grades', (autopilot.require_grade || []).join(', ')],
+                ['Aktiv seit', autopilot.enabled_at ? new Date(autopilot.enabled_at).toLocaleString('de-DE') : '—'],
+              ]}/>
+              <div className="alert-banner alert-info mt-16">
+                <Icon name="bell"/>
+                <div>
+                  <b>Webhook-URL:</b> <span className="t-mono">{Config.baseUrl}/api/v1/webhook/tradingview/&lt;TV_WEBHOOK_SECRET&gt;</span><br/>
+                  Setze <span className="t-mono">TV_WEBHOOK_SECRET</span> in <span className="t-mono">.env</span>, dann via cloudflared/ngrok öffentlich tunneln.
+                </div>
+              </div>
+            </>
+          ) : <div className="t-body text-muted">Lade…</div>}
+        </Card>
+      </div>
+
+      <Card title="Bootstrap (Phase 3) — synthetisches Training auf yfinance-Daten" style={{ marginBottom: 16 }}>
+        <div className="t-body-sm text-muted mb-8">
+          Lädt 2 Jahre OHLCV für Forex/Crypto/Metalle, generiert Setup-Kandidaten, simuliert Outcomes und trainiert eine Initialversion.
+          Das ist dein Cold-Start-Workaround bevor genug Live-Outcomes gesammelt sind.
+        </div>
+        <div className="row gap-12">
+          <div className="field-group" style={{ width: 100 }}>
+            <label className="t-label">Period</label>
+            <select className="select" value={bootstrapForm.period} onChange={e => setBootstrapForm(f => ({ ...f, period: e.target.value }))}>
+              <option>1y</option><option>2y</option><option>5y</option>
+            </select>
+          </div>
+          <div className="field-group" style={{ width: 100 }}>
+            <label className="t-label">Epochs</label>
+            <input className="input mono" type="number" value={bootstrapForm.epochs} onChange={e => setBootstrapForm(f => ({ ...f, epochs: e.target.value }))}/>
+          </div>
+          <button className="btn btn-primary" style={{ alignSelf: 'flex-end' }} onClick={bootstrap} disabled={busy.bootstrap}>
+            <Icon name="zap"/> {busy.bootstrap ? 'Bootstrap läuft…' : 'Bootstrap starten (kann 1-2 Min dauern)'}
+          </button>
+        </div>
+      </Card>
+
+      <Card title={`Outcomes · ${outcomes.total} insgesamt`} action={
+        <div className="row gap-8" style={{ fontSize: 12 }}>
+          {Object.entries(outcomes.summary || {}).map(([k, v]) => (
+            <Badge key={k} variant={outcomeBadge(k)}>{k}: {v}</Badge>
+          ))}
+        </div>
+      } style={{ marginBottom: 16 }}>
+        {outcomes.items.length === 0 ? (
+          <div className="t-body text-muted" style={{ padding: '24px 0', textAlign: 'center' }}>Noch keine Outcomes — sobald du Trades schliesst, erscheinen sie hier.</div>
+        ) : (
+          <div style={{ overflowX: 'auto', margin: '0 -20px' }}>
+            <table className="tbl">
+              <thead><tr>
+                <th style={{ paddingLeft: 20 }}>Order</th><th>Symbol</th><th>Side</th>
+                <th>Entry</th><th>Outcome</th><th>P&amp;L</th><th>ML-Score</th><th>Aktion</th>
+              </tr></thead>
+              <tbody>
+                {outcomes.items.map(o => (
+                  <tr key={o.id}>
+                    <td style={{ paddingLeft: 20 }} className="t-mono text-faint">{o.order_id?.slice(0, 12)}…</td>
+                    <td className="t-mono">{o.symbol}</td>
+                    <td><span className={`dir ${o.side.toLowerCase()}`}>{o.side}</span></td>
+                    <td className="t-mono">{o.entry_price}</td>
+                    <td>{o.outcome ? <Badge variant={outcomeBadge(o.outcome)}>{o.outcome}</Badge> : <span className="text-faint">offen</span>}</td>
+                    <td className={`t-mono ${pnlClass(o.pnl)}`}>{o.pnl != null ? fmtMoney(o.pnl) : '—'}</td>
+                    <td className="t-mono">{o.ml_score_at_submit?.toFixed?.(3) ?? '—'}</td>
+                    <td>
+                      {!o.outcome && (
+                        <div className="row gap-4">
+                          <input className="input mono" placeholder="Schlusskurs"
+                            value={closeForm[o.order_id] || ''}
+                            onChange={e => setCloseForm(f => ({ ...f, [o.order_id]: e.target.value }))}
+                            style={{ width: 110, padding: '4px 6px' }}/>
+                          <button className="btn btn-secondary btn-sm" onClick={() => closeTrade(o.order_id)}>
+                            <Icon name="check"/> Schließen
+                          </button>
+                        </div>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Card>
+
+      <Card title={`Checkpoints (${checkpoints.length})`}>
+        {checkpoints.length === 0 ? (
+          <div className="t-body text-muted">Noch keine Checkpoints — Retrain oder Bootstrap legen sie an.</div>
+        ) : (
+          <table className="tbl">
+            <thead><tr><th>Datei</th><th>Samples</th><th>Acc</th><th>Aktiv</th><th></th></tr></thead>
+            <tbody>
+              {checkpoints.map(c => (
+                <tr key={c.checkpoint}>
+                  <td className="t-mono">{c.checkpoint}</td>
+                  <td>{c.samples ?? '—'}</td>
+                  <td>{c.final_accuracy != null ? `${(c.final_accuracy * 100).toFixed(1)}%` : '—'}</td>
+                  <td>{c.is_active ? <Badge variant="success">aktiv</Badge> : '—'}</td>
+                  <td>
+                    {!c.is_active && (
+                      <button className="btn btn-ghost btn-sm" onClick={async () => {
+                        await Api.mlActivateCheckpoint(c.checkpoint);
+                        toast.push('success', `Aktiviert: ${c.checkpoint}`);
+                        await refresh();
+                      }}>Aktivieren</button>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </Card>
+    </div>
+  );
+}
+
+// ─── Backtest Page ─────────────────────────────────────────
+function BacktestPage() {
+  const toast = useToast();
+  const [tab, setTab] = useState('insample');
+  const [form, setForm] = useState({
+    period: '2y', threshold: 0.5, starting_capital: 10000,
+    risk_per_trade_pct: 0.02, rr: 3.0, symbolsText: '',
+    train_fraction: 0.7, epochs: 200,
+  });
+  const [result, setResult] = useState(null);
+  const [wfResult, setWfResult] = useState(null);
+  const [busy, setBusy] = useState(false);
+
+  const upd = (k, v) => setForm(f => ({ ...f, [k]: v }));
+
+  const symbolsArr = () => form.symbolsText.trim()
+    ? form.symbolsText.split(',').map(s => s.trim()).filter(Boolean)
+    : null;
+
+  const run = async () => {
+    setBusy(true); setResult(null);
+    try {
+      const r = await Api.mlBacktest({
+        symbols: symbolsArr(),
+        period: form.period,
+        threshold: parseFloat(form.threshold),
+        starting_capital: parseFloat(form.starting_capital),
+        risk_per_trade_pct: parseFloat(form.risk_per_trade_pct),
+        rr: parseFloat(form.rr),
+      });
+      setResult(r);
+      toast.push('success',
+        `Backtest ✓ ${r.trades_taken} Trades · ROI ${r.roi_pct.toFixed(1)}% · Win-Rate ${(r.win_rate*100).toFixed(1)}%`);
+    } catch (e) { toast.push('error', e.message); }
+    finally { setBusy(false); }
+  };
+
+  const runWf = async () => {
+    setBusy(true); setWfResult(null);
+    try {
+      const r = await Api.mlWalkforward({
+        symbols: symbolsArr(),
+        period: form.period,
+        train_fraction: parseFloat(form.train_fraction),
+        threshold: parseFloat(form.threshold),
+        starting_capital: parseFloat(form.starting_capital),
+        risk_per_trade_pct: parseFloat(form.risk_per_trade_pct),
+        rr: parseFloat(form.rr),
+        epochs: parseInt(form.epochs) || 200,
+      });
+      setWfResult(r);
+      toast.push(r.out_of_sample.roi_pct >= 0 ? 'success' : 'warn',
+        `Walk-Forward · in ${r.in_sample.roi_pct.toFixed(1)}% / out ${r.out_of_sample.roi_pct.toFixed(1)}%`);
+    } catch (e) { toast.push('error', e.message); }
+    finally { setBusy(false); }
+  };
+
+  // Tiny inline SVG sparkline for the equity curve — keeps the frontend
+  // CDN-free; if you ever want a real chart, swap to Recharts here.
+  const renderEquityCurve = curve => {
+    if (!curve || curve.length < 2) return null;
+    const w = 800, h = 200, pad = 30;
+    const min = Math.min(...curve), max = Math.max(...curve);
+    const range = max - min || 1;
+    const stepX = (w - 2 * pad) / (curve.length - 1);
+    const points = curve.map((v, i) => {
+      const x = pad + i * stepX;
+      const y = h - pad - ((v - min) / range) * (h - 2 * pad);
+      return `${x.toFixed(1)},${y.toFixed(1)}`;
+    }).join(' ');
+    const startEq = curve[0], endEq = curve[curve.length - 1];
+    const positive = endEq >= startEq;
+    return (
+      <svg width="100%" height={h} viewBox={`0 0 ${w} ${h}`} style={{ background: 'var(--neutral-800)', borderRadius: 8 }}>
+        <line x1={pad} y1={h-pad} x2={w-pad} y2={h-pad} stroke="var(--neutral-700)" />
+        <line x1={pad} y1={pad}   x2={pad}   y2={h-pad} stroke="var(--neutral-700)" />
+        <text x={pad+4} y={pad+12} fill="var(--neutral-400)" fontSize="11">${max.toFixed(0)}</text>
+        <text x={pad+4} y={h-pad-4} fill="var(--neutral-400)" fontSize="11">${min.toFixed(0)}</text>
+        <polyline fill="none" stroke={positive ? 'var(--success-500)' : 'var(--danger-500)'}
+          strokeWidth="2" points={points}/>
+        <line x1={pad} y1={h-pad-((startEq-min)/range)*(h-2*pad)} x2={w-pad}
+          y2={h-pad-((startEq-min)/range)*(h-2*pad)} stroke="var(--neutral-600)" strokeDasharray="4,4"/>
+      </svg>
+    );
+  };
+
+  const renderConfigGrid = (extra) => (
+    <div className="grid" style={{ gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
+      <div className="field-group">
+        <label className="t-label">Symbole (kommasepariert, leer = Default)</label>
+        <input className="input mono" value={form.symbolsText} onChange={e => upd('symbolsText', e.target.value)} placeholder="EURUSD=X,BTC-USD,GLD" />
+      </div>
+      <div className="field-group">
+        <label className="t-label">Period</label>
+        <select className="select" value={form.period} onChange={e => upd('period', e.target.value)}>
+          <option>1y</option><option>2y</option><option>3y</option><option>5y</option><option>10y</option>
+        </select>
+      </div>
+      <div className="field-group">
+        <label className="t-label">Threshold ({parseFloat(form.threshold).toFixed(2)})</label>
+        <input type="range" min="0" max="1" step="0.05" value={form.threshold} onChange={e => upd('threshold', e.target.value)} />
+      </div>
+      <div className="field-group">
+        <label className="t-label">Startkapital ($)</label>
+        <input className="input mono" type="number" value={form.starting_capital} onChange={e => upd('starting_capital', e.target.value)} />
+      </div>
+      <div className="field-group">
+        <label className="t-label">Risk pro Trade (%)</label>
+        <input className="input mono" type="number" step="0.005" value={form.risk_per_trade_pct} onChange={e => upd('risk_per_trade_pct', e.target.value)} />
+      </div>
+      <div className="field-group">
+        <label className="t-label">R/R-Multiple</label>
+        <input className="input mono" type="number" step="0.5" value={form.rr} onChange={e => upd('rr', e.target.value)} />
+      </div>
+      {extra}
+    </div>
+  );
+
+  return (
+    <div className="page">
+      <div className="page-head">
+        <div>
+          <div className="breadcrumb">VALIDATION</div>
+          <h1 className="t-h1">ML Backtest</h1>
+        </div>
+      </div>
+
+      <div className="tabs mb-16">
+        <button className={`tab ${tab==='insample'?'active':''}`} onClick={() => setTab('insample')}>In-Sample (aktives Modell)</button>
+        <button className={`tab ${tab==='walkforward'?'active':''}`} onClick={() => setTab('walkforward')}>Walk-Forward (echte OOS)</button>
+      </div>
+
+      {tab === 'insample' && (
+        <>
+          <div className="alert-banner alert-info mb-16">
+            <Icon name="bell"/>
+            <div>
+              <b>In-Sample-Test:</b> der Backtester lädt yfinance-OHLCV und schickt jede Setup-Kandidate durchs <i>aktive</i> Modell.
+              Wenn das Modell auf denselben Daten trainiert wurde, sind die Ergebnisse hier <i>optimistisch</i> — verwende den Walk-Forward-Tab für eine ehrliche Out-of-Sample-Validierung.
+            </div>
+          </div>
+
+          <Card title="Konfiguration" style={{ marginBottom: 16 }}>
+            {renderConfigGrid()}
+            <button className="btn btn-primary mt-16" onClick={run} disabled={busy}>
+              <Icon name="zap"/> {busy ? 'Backtest läuft… (1–2 Min)' : 'Backtest starten'}
+            </button>
+          </Card>
+
+          {result && (
+            <>
+              <div className="kpi-grid mb-16">
+                <KpiCard label="ROI" value={`${result.roi_pct.toFixed(1)}%`} cls={result.roi_pct >= 0 ? 'up' : 'down'} valCls={result.roi_pct >= 0 ? 'text-success' : 'text-danger'} meta={`$${result.starting_capital.toFixed(0)} → $${result.ending_capital.toFixed(0)}`} />
+                <KpiCard label="Win-Rate" value={`${(result.win_rate*100).toFixed(1)}%`} cls="neutral" meta={`${result.wins} W / ${result.losses} L`} />
+                <KpiCard label="Expectancy" value={`${result.expectancy_r.toFixed(2)}R`} cls={result.expectancy_r > 0 ? 'up' : 'down'} valCls={result.expectancy_r > 0 ? 'text-success' : 'text-danger'} meta={`R/R 1:${result.rr}`} />
+                <KpiCard label="Trades" value={result.trades_taken} cls="neutral" meta={`${result.trades_skipped} skipped (${result.skipped_lowscore} low score)`} />
+              </div>
+
+              <Card title="Equity-Kurve" style={{ marginBottom: 16 }}>
+                {renderEquityCurve(result.equity_curve)}
+                <div className="t-body-sm text-muted mt-8">
+                  {result.samples} Setup-Kandidaten · Symbole: {result.symbols_processed.join(', ')}
+                </div>
+              </Card>
+
+              <Card title="Score-Verteilung (Modell-Konfidenz auf allen Kandidaten)">
+                <div className="t-body-sm text-muted mb-8">
+                  Median: {result.score_distribution?.length ? (result.score_distribution.slice().sort()[Math.floor(result.score_distribution.length/2)]).toFixed(3) : '—'}
+                  {' · '}
+                  Über Threshold ({result.threshold.toFixed(2)}): {result.score_distribution?.filter(s => s >= result.threshold).length || 0} / {result.score_distribution?.length || 0}
+                </div>
+                <div className="row" style={{ flexWrap: 'wrap', gap: 1 }}>
+                  {(result.score_distribution || []).map((s, i) => (
+                    <div key={i} title={s.toFixed(3)} style={{
+                      width: 6, height: Math.max(4, s * 40),
+                      background: s >= result.threshold ? 'var(--success-500)' : 'var(--neutral-600)',
+                      borderRadius: 1,
+                    }}/>
+                  ))}
+                </div>
+              </Card>
+            </>
+          )}
+        </>
+      )}
+
+      {tab === 'walkforward' && (
+        <>
+          <div className="alert-banner alert-info mb-16">
+            <Icon name="bell"/>
+            <div>
+              <b>Walk-Forward:</b> chronologischer Train/Test-Split. Das Modell wird neu auf der ersten <span className="t-mono">{(form.train_fraction*100).toFixed(0)}%</span> der Daten trainiert und dann auf der restlichen <i>nie gesehenen</i> Periode getestet. Das ist die ehrliche Antwort auf „funktioniert das?".
+            </div>
+          </div>
+
+          <Card title="Konfiguration" style={{ marginBottom: 16 }}>
+            {renderConfigGrid(
+              <>
+                <div className="field-group">
+                  <label className="t-label">Train-Anteil ({(parseFloat(form.train_fraction)*100).toFixed(0)}%)</label>
+                  <input type="range" min="0.3" max="0.9" step="0.05" value={form.train_fraction} onChange={e => upd('train_fraction', e.target.value)}/>
+                </div>
+                <div className="field-group">
+                  <label className="t-label">Epochs</label>
+                  <input className="input mono" type="number" value={form.epochs} onChange={e => upd('epochs', e.target.value)}/>
+                </div>
+              </>
+            )}
+            <button className="btn btn-primary mt-16" onClick={runWf} disabled={busy}>
+              <Icon name="zap"/> {busy ? 'Walk-Forward läuft…' : 'Walk-Forward starten'}
+            </button>
+          </Card>
+
+          {wfResult && (
+            <>
+              <Card style={{ marginBottom: 16 }}>
+                <div className="t-h4 mb-8">Verdict</div>
+                <div className={`alert-banner ${
+                  wfResult.honest_verdict.includes('OVERFIT') ? 'alert-critical' :
+                  wfResult.honest_verdict.includes('PROMISING') ? 'alert-info' :
+                  'alert-warn'
+                }`}>
+                  <Icon name={wfResult.honest_verdict.includes('PROMISING') ? 'check' : 'alert'}/>
+                  <div>{wfResult.honest_verdict}</div>
+                </div>
+              </Card>
+
+              <div className="grid mb-16" style={{ gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+                <Card title={`In-Sample (${wfResult.samples.train} samples)`}>
+                  <div className="kpi-grid mb-8">
+                    <KpiCard label="ROI" value={`${wfResult.in_sample.roi_pct.toFixed(1)}%`} cls={wfResult.in_sample.roi_pct >= 0 ? 'up' : 'down'} valCls={wfResult.in_sample.roi_pct >= 0 ? 'text-success' : 'text-danger'} meta={`${wfResult.in_sample.trades_taken} Trades`} />
+                    <KpiCard label="Win-Rate" value={`${(wfResult.in_sample.win_rate*100).toFixed(0)}%`} cls="neutral" meta={`${wfResult.in_sample.wins}W / ${wfResult.in_sample.losses}L`} />
+                  </div>
+                  {renderEquityCurve(wfResult.in_sample.equity_curve)}
+                </Card>
+
+                <Card title={`Out-of-Sample (${wfResult.samples.test} samples)`}>
+                  <div className="kpi-grid mb-8">
+                    <KpiCard label="ROI" value={`${wfResult.out_of_sample.roi_pct.toFixed(1)}%`} cls={wfResult.out_of_sample.roi_pct >= 0 ? 'up' : 'down'} valCls={wfResult.out_of_sample.roi_pct >= 0 ? 'text-success' : 'text-danger'} meta={`${wfResult.out_of_sample.trades_taken} Trades`} />
+                    <KpiCard label="Win-Rate" value={`${(wfResult.out_of_sample.win_rate*100).toFixed(0)}%`} cls="neutral" meta={`${wfResult.out_of_sample.wins}W / ${wfResult.out_of_sample.losses}L`} />
+                  </div>
+                  {renderEquityCurve(wfResult.out_of_sample.equity_curve)}
+                </Card>
+              </div>
+
+              <Card title="Modell-Statistik">
+                <KvList items={[
+                  ['Trainings-Loss', wfResult.training.final_loss.toFixed(4)],
+                  ['Trainings-Accuracy', `${(wfResult.training.final_accuracy*100).toFixed(1)}%`],
+                  ['Trades skipped (in-sample)', wfResult.in_sample.trades_skipped],
+                  ['Trades skipped (out-of-sample)', wfResult.out_of_sample.trades_skipped],
+                  ['Expectancy in-sample', `${wfResult.in_sample.expectancy_r.toFixed(2)}R`],
+                  ['Expectancy out-of-sample', `${wfResult.out_of_sample.expectancy_r.toFixed(2)}R`],
+                ]}/>
+              </Card>
+            </>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+// ─── Broker hinzufügen Page ────────────────────────────────
+function BrokersPage() {
+  const toast = useToast();
+  const [tab, setTab] = useState('ccxt');
+  const [defs, setDefs] = useState([]);
+  const [busy, setBusy] = useState(false);
+
+  // CCXT tab state
+  const [ccxtList, setCcxtList] = useState({ installed: false, exchanges: [] });
+  const [ccxtForm, setCcxtForm] = useState({ exchange: '', label: '', tags: '' });
+  const [ccxtFilter, setCcxtFilter] = useState('');
+
+  // REST tab state — start from the example template
+  const [restForm, setRestForm] = useState({
+    broker_type: 'custom:my-broker',
+    label: 'My Broker',
+    description: '',
+    tags: '',
+    paper_supported: true,
+    live_supported: true,
+    config: '',
+    credentials: '[\n  {"name":"api_key","secret":false,"placeholder":"API key"},\n  {"name":"secret_key","required":false,"secret":true,"placeholder":"API secret"}\n]',
+    test_creds: '{"api_key":"test","secret_key":"test"}',
+  });
+  const [testResult, setTestResult] = useState(null);
+
+  const refresh = useCallback(async () => {
+    try {
+      const [list, ccxt, tpl] = await Promise.all([
+        Api.brokerDefs(),
+        Api.ccxtExchanges(),
+        Api.restTemplate(),
+      ]);
+      setDefs(list.defs || []);
+      setCcxtList(ccxt);
+      if (!restForm.config) {
+        setRestForm(f => ({ ...f, config: JSON.stringify(tpl.example, null, 2) }));
+      }
+    } catch (e) { toast.push('error', `Reload: ${e.message}`); }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [toast]);
+
+  useEffect(() => { refresh(); }, [refresh]);
+
+  const filteredCcxt = useMemo(() => {
+    const f = ccxtFilter.toLowerCase().trim();
+    return f ? ccxtList.exchanges.filter(e => e.includes(f)) : ccxtList.exchanges;
+  }, [ccxtList.exchanges, ccxtFilter]);
+
+  const addCcxt = async () => {
+    if (!ccxtForm.exchange) { toast.push('warn', 'Exchange auswählen'); return; }
+    setBusy(true);
+    try {
+      const res = await Api.addCcxtDef({
+        exchange: ccxtForm.exchange,
+        label: ccxtForm.label || undefined,
+        tags: ccxtForm.tags ? ccxtForm.tags.split(',').map(s => s.trim()).filter(Boolean) : undefined,
+      });
+      toast.push('success', `${res.broker_type} registriert`);
+      setCcxtForm({ exchange: '', label: '', tags: '' });
+      await refresh();
+    } catch (e) { toast.push('error', e.message); }
+    finally { setBusy(false); }
+  };
+
+  const addRest = async () => {
+    setBusy(true);
+    try {
+      let config, credentials;
+      try { config = JSON.parse(restForm.config); }
+      catch { throw new Error('Config ist kein gültiges JSON'); }
+      try { credentials = restForm.credentials ? JSON.parse(restForm.credentials) : []; }
+      catch { throw new Error('Credentials-Schema ist kein gültiges JSON'); }
+      await Api.addRestDef({
+        broker_type: restForm.broker_type,
+        label: restForm.label,
+        description: restForm.description,
+        tags: restForm.tags ? restForm.tags.split(',').map(s => s.trim()).filter(Boolean) : undefined,
+        paper_supported: restForm.paper_supported,
+        live_supported: restForm.live_supported,
+        config,
+        credentials,
+      });
+      toast.push('success', `${restForm.broker_type} registriert`);
+      await refresh();
+    } catch (e) { toast.push('error', e.message); }
+    finally { setBusy(false); }
+  };
+
+  const testRest = async () => {
+    setBusy(true); setTestResult(null);
+    try {
+      let config, credentials;
+      try { config = JSON.parse(restForm.config); }
+      catch { throw new Error('Config ist kein gültiges JSON'); }
+      try { credentials = JSON.parse(restForm.test_creds); }
+      catch { throw new Error('Test-Credentials sind kein gültiges JSON'); }
+      const r = await Api.testRestDef({ config, credentials, paper: restForm.paper_supported });
+      setTestResult(r);
+      toast.push(r.ok ? 'success' : 'warn', r.ok ? 'Verbindung ok' : `Verbindung fehlgeschlagen (${r.stage})`);
+    } catch (e) { toast.push('error', e.message); }
+    finally { setBusy(false); }
+  };
+
+  const deleteDef = async (broker_type) => {
+    if (!confirm(`Broker-Definition "${broker_type}" löschen?`)) return;
+    try {
+      await Api.deleteBrokerDef(broker_type);
+      toast.push('info', `${broker_type} entfernt`);
+      await refresh();
+    } catch (e) { toast.push('error', e.message); }
+  };
+
+  return (
+    <div className="page">
+      <div className="page-head">
+        <div>
+          <div className="breadcrumb">PROVIDER</div>
+          <h1 className="t-h1">Broker hinzufügen</h1>
+        </div>
+        <button className="btn btn-secondary btn-sm" onClick={refresh}><Icon name="refresh"/> Reload</button>
+      </div>
+
+      <div className="alert-banner alert-info mb-16">
+        <Icon name="bell"/>
+        <div>
+          Hier registrierst du eigene Broker, ohne Code-Editing. Nach dem Speichern erscheinen sie sofort im Setup-Dropdown unter Kategorie <span className="t-mono">custom</span>.
+          Beim nächsten Backend-Neustart werden sie automatisch aus der DB nachgeladen.
+        </div>
+      </div>
+
+      <div className="tabs mb-16">
+        <button className={`tab ${tab==='ccxt'?'active':''}`} onClick={() => setTab('ccxt')}>CCXT-Exchange</button>
+        <button className={`tab ${tab==='rest'?'active':''}`} onClick={() => setTab('rest')}>Generic REST</button>
+        <button className={`tab ${tab==='list'?'active':''}`} onClick={() => setTab('list')}>Bestehende ({defs.length})</button>
+      </div>
+
+      {tab === 'ccxt' && (
+        <Card title="CCXT-Exchange auswählen">
+          {!ccxtList.installed && (
+            <div className="alert-banner alert-warn mb-16">
+              <Icon name="alert"/>
+              <div>CCXT ist nicht installiert. <span className="t-mono">pip install ccxt</span> im venv ausführen oder über <span className="t-mono">requirements.txt</span> nachziehen.</div>
+            </div>
+          )}
+          {ccxtList.installed && (
+            <>
+              <div className="t-body-sm text-muted mb-8">
+                {ccxtList.exchanges.length} Exchanges verfügbar. Filter eingeben, dann auswählen.
+              </div>
+              <input className="input mono mb-8" value={ccxtFilter} onChange={e => setCcxtFilter(e.target.value)} placeholder="Suche (binance, kraken, …)" />
+              <div style={{ maxHeight: 220, overflowY: 'auto', border: '1px solid var(--neutral-700)', borderRadius: 4, padding: 8 }}>
+                <div className="row" style={{ flexWrap: 'wrap', gap: 4 }}>
+                  {filteredCcxt.slice(0, 200).map(name => (
+                    <button key={name} type="button"
+                      className={`btn btn-sm ${ccxtForm.exchange === name ? 'btn-primary' : 'btn-secondary'}`}
+                      onClick={() => setCcxtForm(f => ({ ...f, exchange: name }))}>
+                      {name}
+                    </button>
+                  ))}
+                  {filteredCcxt.length > 200 && (
+                    <div className="t-body-sm text-faint">+{filteredCcxt.length - 200} mehr — Filter eingrenzen</div>
+                  )}
+                </div>
+              </div>
+
+              <div className="grid mt-16" style={{ gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <div className="field-group">
+                  <label className="t-label">Label (optional, default: Auto)</label>
+                  <input className="input mono" value={ccxtForm.label} onChange={e => setCcxtForm(f => ({ ...f, label: e.target.value }))} placeholder={ccxtForm.exchange ? `${ccxtForm.exchange} (via CCXT)` : ''}/>
+                </div>
+                <div className="field-group">
+                  <label className="t-label">Tags (kommasepariert)</label>
+                  <input className="input mono" value={ccxtForm.tags} onChange={e => setCcxtForm(f => ({ ...f, tags: e.target.value }))} placeholder="crypto, spot"/>
+                </div>
+              </div>
+
+              <button className="btn btn-primary mt-16" onClick={addCcxt} disabled={busy || !ccxtForm.exchange}>
+                <Icon name="check"/> Hinzufügen{ccxtForm.exchange ? ` als ccxt:${ccxtForm.exchange}` : ''}
+              </button>
+            </>
+          )}
+        </Card>
+      )}
+
+      {tab === 'rest' && (
+        <>
+          <Card title="Metadaten" style={{ marginBottom: 16 }}>
+            <div className="grid" style={{ gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <div className="field-group">
+                <label className="t-label">broker_type (eindeutige ID, lowercase)</label>
+                <input className="input mono" value={restForm.broker_type} onChange={e => setRestForm(f => ({ ...f, broker_type: e.target.value.toLowerCase() }))} placeholder="custom:my-broker"/>
+              </div>
+              <div className="field-group">
+                <label className="t-label">Label (Anzeige)</label>
+                <input className="input mono" value={restForm.label} onChange={e => setRestForm(f => ({ ...f, label: e.target.value }))}/>
+              </div>
+              <div className="field-group">
+                <label className="t-label">Beschreibung</label>
+                <input className="input mono" value={restForm.description} onChange={e => setRestForm(f => ({ ...f, description: e.target.value }))}/>
+              </div>
+              <div className="field-group">
+                <label className="t-label">Tags (kommasepariert)</label>
+                <input className="input mono" value={restForm.tags} onChange={e => setRestForm(f => ({ ...f, tags: e.target.value }))}/>
+              </div>
+              <div className="field-group">
+                <label className="t-label">Paper-Modus erlauben</label>
+                <input type="checkbox" checked={restForm.paper_supported} onChange={e => setRestForm(f => ({ ...f, paper_supported: e.target.checked }))}/>
+              </div>
+              <div className="field-group">
+                <label className="t-label">Live-Modus erlauben</label>
+                <input type="checkbox" checked={restForm.live_supported} onChange={e => setRestForm(f => ({ ...f, live_supported: e.target.checked }))}/>
+              </div>
+            </div>
+          </Card>
+
+          <Card title="REST-Konfiguration (JSON)" style={{ marginBottom: 16 }}>
+            <div className="t-body-sm text-muted mb-8">
+              Endpoints, Auth-Methode, JSON-Pfade. Vorlage ist vorausgefüllt — passe URLs und Felder an deinen Broker an.
+              Doku: <span className="t-mono">docs/CUSTOM_BROKERS.md</span>
+            </div>
+            <textarea className="input mono" rows={18} value={restForm.config} onChange={e => setRestForm(f => ({ ...f, config: e.target.value }))} style={{ resize: 'vertical', width: '100%' }}/>
+          </Card>
+
+          <Card title="Credential-Schema (JSON, optional)" style={{ marginBottom: 16 }}>
+            <div className="t-body-sm text-muted mb-8">
+              Beschreibt welche Felder die UI im Setup-Dialog anzeigt (api_key, secret_key, …). Lass es leer für Default (api_key + optional secret_key).
+            </div>
+            <textarea className="input mono" rows={5} value={restForm.credentials} onChange={e => setRestForm(f => ({ ...f, credentials: e.target.value }))} style={{ resize: 'vertical', width: '100%' }}/>
+          </Card>
+
+          <Card title="Verbindung testen" style={{ marginBottom: 16 }}>
+            <div className="t-body-sm text-muted mb-8">
+              Trade-Claw versucht <span className="t-mono">authenticate</span> + <span className="t-mono">balance</span> mit den unten eingegebenen Test-Credentials, ohne den Broker zu speichern.
+            </div>
+            <textarea className="input mono mb-8" rows={3} value={restForm.test_creds} onChange={e => setRestForm(f => ({ ...f, test_creds: e.target.value }))} style={{ resize: 'vertical', width: '100%' }} placeholder='{"api_key":"...","secret_key":"..."}'/>
+            <button className="btn btn-secondary" onClick={testRest} disabled={busy}>
+              <Icon name="check"/> Verbindung testen
+            </button>
+            {testResult && (
+              <div className={`alert-banner mt-16 ${testResult.ok ? 'alert-info' : 'alert-critical'}`}>
+                <Icon name={testResult.ok ? 'check' : 'alert'}/>
+                <div>
+                  {testResult.ok ? (
+                    <>
+                      <b>OK</b> — Authentifizierung erfolgreich.
+                      {testResult.balance && Object.keys(testResult.balance).length > 0 && (
+                        <pre style={{ fontSize: 11, marginTop: 8, fontFamily: 'var(--font-mono)' }}>
+                          {JSON.stringify(testResult.balance, null, 2)}
+                        </pre>
+                      )}
+                    </>
+                  ) : (
+                    <>
+                      <b>{testResult.stage}</b> fehlgeschlagen: <span className="t-mono">{testResult.error}</span>
+                    </>
+                  )}
+                </div>
+              </div>
+            )}
+          </Card>
+
+          <button className="btn btn-primary" onClick={addRest} disabled={busy}>
+            <Icon name="check"/> Speichern &amp; registrieren
+          </button>
+        </>
+      )}
+
+      {tab === 'list' && (
+        <Card title={`Eigene Broker (${defs.length})`}>
+          {defs.length === 0 ? (
+            <div className="t-body text-muted">Noch keine eigenen Broker definiert.</div>
+          ) : (
+            <table className="tbl">
+              <thead><tr>
+                <th>broker_type</th><th>Kind</th><th>Label</th><th>Tags</th>
+                <th>Paper</th><th>Live</th><th></th>
+              </tr></thead>
+              <tbody>
+                {defs.map(d => (
+                  <tr key={d.id}>
+                    <td className="t-mono">{d.broker_type}</td>
+                    <td><Badge variant="neutral">{d.kind}</Badge></td>
+                    <td>{d.label}</td>
+                    <td className="t-body-sm">{(d.tags || []).join(', ') || '—'}</td>
+                    <td>{d.paper_supported ? '✓' : '—'}</td>
+                    <td>{d.live_supported ? '✓' : '—'}</td>
+                    <td>
+                      <button className="btn btn-ghost btn-sm" onClick={() => deleteDef(d.broker_type)}>
+                        Löschen
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </Card>
+      )}
+    </div>
+  );
+}
+
 // ─── Settings ──────────────────────────────────────────────
 function Settings({ onReconfigure }) {
   const toast = useToast();
@@ -1204,11 +2077,14 @@ function Shell() {
   const nav = [
     { k: 'dashboard',   label: 'Dashboard',        ic: 'dashboard' },
     { k: 'trade',       label: 'Trading Console',  ic: 'trade' },
+    { k: 'autopilot',   label: 'ML & Autopilot',   ic: 'zap' },
+    { k: 'backtest',    label: 'Backtest',         ic: 'analytics' },
     { k: 'risk',        label: 'Risk Management',  ic: 'risk' },
     { k: 'grader',      label: 'Trade Grader',     ic: 'zap' },
     { k: 'correlation', label: 'Correlation',      ic: 'analytics' },
     { k: 'macro',       label: 'Macro Events',     ic: 'bell' },
     { k: 'audit',       label: 'Audit & History',  ic: 'analytics' },
+    { k: 'brokers',     label: 'Broker hinzufügen', ic: 'globe' },
     { k: 'settings',    label: 'Settings',         ic: 'settings' },
   ];
 
@@ -1260,11 +2136,14 @@ function Shell() {
         )}
         {page === 'dashboard'   && <Dashboard live={live} onHalt={() => setHaltOpen(true)} onNav={setPage} />}
         {page === 'trade'       && <TradingConsole live={live} />}
+        {page === 'autopilot'   && <MlAutopilotPage />}
+        {page === 'backtest'    && <BacktestPage />}
         {page === 'risk'        && <RiskManagement live={live} onHalt={() => setHaltOpen(true)} />}
         {page === 'grader'      && <GraderPage />}
         {page === 'correlation' && <CorrelationPage />}
         {page === 'macro'       && <MacroPage />}
         {page === 'audit'       && <AuditPage />}
+        {page === 'brokers'     && <BrokersPage />}
         {page === 'settings'    && <Settings onReconfigure={() => setSetupOpen(true)} />}
       </main>
 

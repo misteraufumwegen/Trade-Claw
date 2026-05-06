@@ -49,13 +49,15 @@ class BrokerSession:
     def __init__(
         self,
         session_id: str,
-        broker_type: BrokerType,
+        broker_type: BrokerType | str,
         broker: BrokerAdapter,
         user_id: str,
         created_at: datetime = None,
     ):
         self.session_id = session_id
-        self.broker_type = broker_type
+        # Normalised to a string so plugins like ``ccxt:binance`` can live
+        # alongside the legacy enum values.
+        self.broker_type = broker_type.value if isinstance(broker_type, BrokerType) else str(broker_type)
         self.broker = broker
         self.user_id = user_id
         self.created_at = created_at or datetime.utcnow()
@@ -74,7 +76,7 @@ class BrokerSession:
         return idle_time > timedelta(minutes=timeout_minutes)
 
     def __repr__(self):
-        return f"<BrokerSession {self.broker_type.value} status={self.status.value}>"
+        return f"<BrokerSession {self.broker_type} status={self.status.value}>"
 
 
 class BrokerSessionRouter:
@@ -114,7 +116,7 @@ class BrokerSessionRouter:
 
         Args:
             user_id: User identifier
-            broker_type: Which broker to use
+            broker_type: Which broker to use (built-in type or plugin id)
             credentials: API key/secret
             **config: Broker-specific configuration
 
@@ -122,27 +124,26 @@ class BrokerSessionRouter:
             session_id string
 
         Raises:
-            ValueError: If broker type not supported
+            ValueError: If broker type not supported by the registry
             AuthenticationError: If credentials invalid
         """
-        # Accept both string and BrokerType enum
-        if isinstance(broker_type, str):
-            broker_type = BrokerType(broker_type)
+        # Plugin-registered brokers are not in the legacy enum, so we keep
+        # broker_type as a string for the rest of this function.
+        type_label = broker_type.value if isinstance(broker_type, BrokerType) else str(broker_type)
+        logger.info("Creating session for user=%s broker=%s", user_id, type_label)
 
-        logger.info(f"Creating session for user={user_id} broker={broker_type.value}")
-
-        # Instantiate broker
-        broker = await self._instantiate_broker(broker_type, credentials, config)
+        # Instantiate broker via the registry (handles both built-ins and plugins)
+        broker = await self._instantiate_broker(type_label, credentials, config)
 
         # Authenticate
         if not await broker.authenticate():
-            raise ValueError(f"Authentication failed for {broker_type.value}")
+            raise ValueError(f"Authentication failed for {type_label}")
 
         # Create session
         session_id = self._generate_session_id()
         session = BrokerSession(
             session_id=session_id,
-            broker_type=broker_type,
+            broker_type=type_label,
             broker=broker,
             user_id=user_id,
         )
@@ -163,7 +164,7 @@ class BrokerSessionRouter:
         self.audit_log.log(
             action="SESSION_CREATED",
             session_id=session_id,
-            details={"user_id": user_id, "broker": broker_type.value},
+            details={"user_id": user_id, "broker": type_label},
         )
 
         logger.info("Session created: %s", session_id)
@@ -268,37 +269,20 @@ class BrokerSessionRouter:
 
     @staticmethod
     async def _instantiate_broker(
-        broker_type: BrokerType,
+        broker_type: BrokerType | str,
         credentials: dict[str, str],
         config: dict[str, Any],
     ) -> BrokerAdapter:
-        """Create broker instance"""
+        """Create broker instance via the plugin registry.
 
-        api_key = credentials.get("api_key")
-        secret_key = credentials.get("secret_key")
+        Accepts either a ``BrokerType`` enum value (legacy callers) or any
+        string broker_type that's been registered, so plugins can introduce
+        new types like ``"ccxt:binance"`` without enum changes.
+        """
+        from app.brokers.registry import REGISTRY  # noqa: PLC0415
 
-        if broker_type == BrokerType.MOCK:
-            return MockBrokerAdapter(
-                api_key=api_key or "mock_key",
-                **config,
-            )
-
-        elif broker_type == BrokerType.HYPERLIQUID:
-            from app.brokers.hyperliquid_adapter import HyperliquidAdapter
-
-            return HyperliquidAdapter(
-                api_key=api_key,
-                secret_key=secret_key,
-                **config,
-            )
-
-        # Alpaca, OANDA would be implemented here
-        # elif broker_type == BrokerType.ALPACA:
-        #     from app.brokers.alpaca_adapter import AlpacaAdapter
-        #     return AlpacaAdapter(api_key=api_key, secret_key=secret_key, **config)
-
-        else:
-            raise ValueError(f"Unsupported broker: {broker_type.value}")
+        type_str = broker_type.value if isinstance(broker_type, BrokerType) else str(broker_type)
+        return REGISTRY.create(type_str, credentials, **config)
 
     @staticmethod
     def _generate_session_id() -> str:

@@ -64,6 +64,28 @@ const Api = {
   // Health & Info
   health() { return request('/health', { auth: false }); },
 
+  // Broker discovery
+  brokerTypes() { return request('/api/v1/brokers/types', { auth: false }); },
+
+  // Custom broker definitions (UI-managed)
+  ccxtExchanges() { return request('/api/v1/brokers/ccxt-exchanges', { auth: false }); },
+  restTemplate() { return request('/api/v1/brokers/rest-template', { auth: false }); },
+  brokerDefs() { return request('/api/v1/brokers/defs'); },
+  addCcxtDef(payload) {
+    return request('/api/v1/brokers/defs/ccxt', { method: 'POST', body: payload });
+  },
+  addRestDef(payload) {
+    return request('/api/v1/brokers/defs/rest', { method: 'POST', body: payload });
+  },
+  deleteBrokerDef(broker_type) {
+    return request(`/api/v1/brokers/defs/${encodeURIComponent(broker_type)}`, { method: 'DELETE' });
+  },
+  testRestDef({ config, credentials, paper = true }) {
+    return request('/api/v1/brokers/defs/test-rest', {
+      method: 'POST', body: { config, credentials, paper },
+    });
+  },
+
   // Broker setup
   setupBroker({ broker_type, credentials, user_id, environment }) {
     return request('/api/v1/brokers/setup', {
@@ -152,6 +174,71 @@ const Api = {
   // Trade-grader
   gradeSetup(payload) {
     return request('/api/v1/ml/grade', { method: 'POST', body: payload, auth: false });
+  },
+
+  // ML lifecycle (Phase 1 + 2)
+  mlStatus() { return request('/api/v1/ml/status', { auth: false }); },
+  mlScore(payload) {
+    return request('/api/v1/ml/score', { method: 'POST', body: payload, auth: false });
+  },
+  mlRetrain({ epochs = 200, learning_rate = 1e-3, activate = true } = {}) {
+    return request('/api/v1/ml/retrain', {
+      method: 'POST', query: { epochs, learning_rate, activate },
+    });
+  },
+  mlCheckpoints() { return request('/api/v1/ml/checkpoints'); },
+  mlActivateCheckpoint(name) {
+    return request(`/api/v1/ml/checkpoints/${encodeURIComponent(name)}/activate`, { method: 'POST' });
+  },
+  mlOutcomes({ session_id, outcome, limit = 100, offset = 0 } = {}) {
+    return request('/api/v1/ml/outcomes', {
+      query: { session_id: session_id || Config.sessionId, outcome, limit, offset },
+    });
+  },
+  mlBootstrap({ symbols, period = '2y', epochs = 200, learning_rate = 1e-3, activate = true } = {}) {
+    return request('/api/v1/ml/bootstrap', {
+      method: 'POST',
+      body: { symbols: symbols || null, period, epochs, learning_rate, activate },
+    });
+  },
+  mlBacktest({
+    symbols, period = '2y', threshold = 0.5,
+    starting_capital = 10000, risk_per_trade_pct = 0.02, rr = 3.0,
+  } = {}) {
+    return request('/api/v1/ml/backtest', {
+      method: 'POST',
+      body: {
+        symbols: symbols || null, period, threshold,
+        starting_capital, risk_per_trade_pct, rr,
+      },
+    });
+  },
+  mlWalkforward({
+    symbols, period = '3y', train_fraction = 0.7, threshold = 0.5,
+    starting_capital = 10000, risk_per_trade_pct = 0.02, rr = 3.0,
+    epochs = 200, learning_rate = 1e-3,
+  } = {}) {
+    return request('/api/v1/ml/walkforward', {
+      method: 'POST',
+      body: {
+        symbols: symbols || null, period, train_fraction, threshold,
+        starting_capital, risk_per_trade_pct, rr, epochs, learning_rate,
+      },
+    });
+  },
+
+  // Autopilot
+  autopilotStatus() { return request('/api/v1/autopilot'); },
+  autopilotConfigure(payload) {
+    return request('/api/v1/autopilot', { method: 'POST', body: payload });
+  },
+
+  // Close trade (manual outcome resolution)
+  closeOrder(order_id, { closed_price, status = 'FILLED' }) {
+    return request(`/api/v1/orders/${encodeURIComponent(order_id)}/close`, {
+      method: 'POST', query: { session_id: Config.sessionId },
+      body: { closed_price, status },
+    });
   },
 };
 

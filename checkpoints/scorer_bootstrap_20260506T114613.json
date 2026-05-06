@@ -1,0 +1,16 @@
+{
+  "kind": "bootstrap",
+  "samples": 27,
+  "wins": 3,
+  "losses": 24,
+  "epochs": 50,
+  "learning_rate": 0.001,
+  "final_loss": 0.5714787244796753,
+  "final_accuracy": 0.8888888955116272,
+  "started_at": "2026-05-06T11:46:13.787133",
+  "finished_at": "2026-05-06T11:46:20.187831",
+  "symbols": [
+    "EURUSD=X",
+    "BTC-USD"
+  ]
+}

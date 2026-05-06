@@ -32,6 +32,15 @@ under `/api/...`. Stop the server with `Ctrl+C` in the launcher window.
 You can switch any time by reconfiguring the broker session from
 *Settings → Neu konfigurieren* in the UI.
 
+## Autopilot & TradingView
+
+Trade-Claw kann TradingView-Alerts via Webhook automatisch in Orders
+übersetzen. Ausführliche Schritt-für-Schritt-Anleitung inkl. Cloudflare-Tunnel,
+Pine-Skript-Vorlage und JSON-Beispielen für Forex / Crypto / Edelmetalle:
+
+→ **`docs/AUTOPILOT_SETUP.md`**
+→ Pine-Vorlage: **`docs/trade_claw_alert.pine`**
+
 ## Docker (advanced)
 
 The Docker setup is preserved for users who prefer containers; it starts

@@ -187,6 +187,73 @@ class MockBrokerAdapter(BrokerAdapter):
 
         logger.info(f"Order {order_id} filled at {fill_price}")
 
+        # Schedule settlement so the trade eventually resolves to WIN or LOSS.
+        # Without this the FastAPI poller would never see the position close
+        # and trade_outcomes rows would stay open forever.
+        asyncio.create_task(self._simulate_settlement(order_id))
+
+    async def _simulate_settlement(self, order_id: str):
+        """Simulate the trade running to SL or TP.
+
+        Picks the outcome with a probability biased toward the loss side
+        (P(TP) ≈ 1 / (1 + R_multiple)) — a fair Bernoulli model for a
+        symmetric random walk with the user's R/R. The exit price recorded
+        on ``order.metadata['closed_price']`` is what the FastAPI poller
+        reads to resolve the TradeOutcome row.
+
+        Settlement delay is short on purpose so manual smoke tests don't
+        wait minutes; tune via ``settlement_delay_seconds`` in adapter
+        kwargs when you want slower playback.
+        """
+        order = self.orders.get(order_id)
+        if order is None:
+            return
+        meta = order.metadata or {}
+        # Pull stop_loss / take_profit from the OrderAPIRequest metadata that
+        # the API adapter forwards into ``order.metadata``.
+        tp = meta.get("take_profit")
+        sl = meta.get("stop_loss")
+        if tp is None or sl is None or order.average_fill_price is None:
+            logger.debug("Order %s missing TP/SL metadata; skipping settlement", order_id)
+            return
+
+        delay = self.config.get("settlement_delay_seconds", random.uniform(2.0, 6.0))
+        await asyncio.sleep(delay)
+
+        if order.status not in (OrderStatus.FILLED, OrderStatus.PARTIALLY_FILLED):
+            return  # cancelled or otherwise mutated meanwhile
+
+        entry = float(order.average_fill_price)
+        tp_f = float(tp)
+        sl_f = float(sl)
+        # Expected R/R from this position
+        risk = abs(entry - sl_f) or 1e-9
+        reward = abs(tp_f - entry)
+        rr = reward / risk
+        # Probability the random walk reaches TP before SL with this R/R.
+        p_tp = 1.0 / (1.0 + rr) if rr > 0 else 0.5
+
+        if random.random() < p_tp:
+            closed_price = tp_f
+            label = "WIN"
+        else:
+            closed_price = sl_f
+            label = "LOSS"
+
+        order.metadata = {
+            **(order.metadata or {}),
+            "closed_price": closed_price,
+            "settlement_label": label,
+            "closed_at": datetime.utcnow().isoformat(),
+        }
+        # Close the position record too so the broker's get_positions reflects
+        # reality at the next poll.
+        if order.symbol in self.positions:
+            self.positions.pop(order.symbol, None)
+        logger.info(
+            "Mock settlement: %s %s @ %s (%s)", order_id, label, closed_price, order.symbol
+        )
+
     async def _simulate_limit_fill(self, order_id: str):
         """Simulate limit order (may never fill in mock)"""
         order = self.orders[order_id]

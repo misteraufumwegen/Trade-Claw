@@ -9,6 +9,16 @@ from .grader import (
     TradeGrader,
     TradeSetup,
 )
+from .service import (
+    FEATURE_COUNT,
+    FEATURE_NAMES,
+    FeatureSnapshot,
+    classify_outcome,
+    extract_features,
+    initialize_model,
+    model_status,
+    score_features,
+)
 
 __all__ = [
     "TradeGrade",
@@ -16,4 +26,12 @@ __all__ = [
     "TradeSetup",
     "GraderEngine",
     "TradeGrader",
+    "FEATURE_NAMES",
+    "FEATURE_COUNT",
+    "FeatureSnapshot",
+    "extract_features",
+    "score_features",
+    "model_status",
+    "initialize_model",
+    "classify_outcome",
 ]

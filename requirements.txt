@@ -27,6 +27,17 @@ pyyaml>=6.0,<7.0
 
 # Numerical / ML
 numpy>=2.0,<3.0
+pandas>=2.2,<3.0
+
+# Machine learning (CPU-only; PyTorch resolves the right wheel for your platform)
+torch>=2.4,<3.0
+
+# Market data — yfinance is the easy default for forex / crypto / metals
+yfinance>=0.2.40,<1.0
+
+# Optional: CCXT unlocks ~100 crypto exchanges as broker plugins
+# (Binance, Kraken, Coinbase, Bybit, OKX, KuCoin, Bitfinex, …)
+ccxt>=4.4,<5.0
 
 # Testing
 pytest>=8.0,<9.0

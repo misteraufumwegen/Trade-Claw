@@ -1,0 +1,125 @@
+//@version=5
+// ────────────────────────────────────────────────────────────────────────────
+// Trade-Claw Alert Sender
+//
+// Beispielhafte Pine-Strategy, die TradingView-Alerts in dem JSON-Format
+// erzeugt, das Trade-Claw direkt akzeptieren kann.
+//
+// Anwendung:
+//   1. In TradingView: Pine-Editor öffnen → diesen Code einfügen
+//   2. „Zu Chart hinzufügen"
+//   3. Alert anlegen (Glocke / Alt+A)
+//        - Bedingung: dieses Script + „Any alert() function call"
+//        - Webhook URL: https://<dein-tunnel>/api/v1/webhook/tradingview/<TV_WEBHOOK_SECRET>
+//        - Nachricht: {{plot_0}}    (das Script gibt das fertige JSON in plot 0 aus)
+//   4. „Once Per Bar Close" auswählen, sonst feuert er pro Tick
+//
+// Anpassbar: ATR-Multiplikatoren, R/R, Mindest-Confluence-Score
+// ────────────────────────────────────────────────────────────────────────────
+
+strategy("Trade-Claw Alert Sender", overlay = true, calc_on_every_tick = false,
+         default_qty_type = strategy.percent_of_equity, default_qty_value = 100)
+
+// ── Inputs ─────────────────────────────────────────────────────────────────
+emaFast       = input.int(20, "EMA Fast",  group="Setup")
+emaSlow       = input.int(50, "EMA Slow",  group="Setup")
+atrLen        = input.int(14, "ATR Length", group="Risk")
+atrSlMult     = input.float(1.5, "SL Multiplikator (ATR)", step=0.1, group="Risk")
+atrTpMult     = input.float(4.5, "TP Multiplikator (ATR — 1:3 zu SL)", step=0.1, group="Risk")
+positionSize  = input.float(1000.0, "Position-Size", group="Risk")
+confidence    = input.int(75, "Confidence (0-100)", group="Trade-Claw")
+symbolOverride= input.string("", "Symbol-Override (leer = TV-Symbol)", group="Trade-Claw",
+    tooltip="Beispiele: EUR_USD, BTC_USD, XAU_USD. Leer lassen = ticker des Charts (kann mit deinen Broker-Codes kollidieren).")
+
+// ── Indikatoren ────────────────────────────────────────────────────────────
+fast = ta.ema(close, emaFast)
+slow = ta.ema(close, emaSlow)
+atr  = ta.atr(atrLen)
+
+// Crossover ist unser Setup-Trigger
+longSignal  = ta.crossover(fast, slow)
+shortSignal = ta.crossunder(fast, slow)
+
+// Volume-Confirmation
+volMa = ta.sma(volume, 20)
+volOk = volume > volMa
+
+// Momentum-Confirmation (RSI 14)
+rsi   = ta.rsi(close, 14)
+momOkLong  = rsi > 50
+momOkShort = rsi < 50
+
+// Higher-timeframe Trend (1D)
+htfClose = request.security(syminfo.tickerid, "D", close[1], lookahead = barmerge.lookahead_off)
+htfTrend = htfClose > ta.sma(htfClose, 50) ? 1 : -1
+
+// ── Trade-Claw Symbol-Mapping ──────────────────────────────────────────────
+// TV-ticker hat Doppelpunkte, Trade-Claw mag Underscore. Mappings für die
+// typischen Major-Märkte sind hier vorgegeben.
+sym = symbolOverride != "" ? symbolOverride :
+      syminfo.ticker == "EURUSD"   ? "EUR_USD"   :
+      syminfo.ticker == "GBPUSD"   ? "GBP_USD"   :
+      syminfo.ticker == "USDJPY"   ? "USD_JPY"   :
+      syminfo.ticker == "USDCHF"   ? "USD_CHF"   :
+      syminfo.ticker == "AUDUSD"   ? "AUD_USD"   :
+      syminfo.ticker == "BTCUSDT"  ? "BTC_USD"   :
+      syminfo.ticker == "BTCUSD"   ? "BTC_USD"   :
+      syminfo.ticker == "ETHUSDT"  ? "ETH_USD"   :
+      syminfo.ticker == "ETHUSD"   ? "ETH_USD"   :
+      syminfo.ticker == "XAUUSD"   ? "XAU_USD"   :
+      syminfo.ticker == "XAGUSD"   ? "XAG_USD"   :
+      syminfo.ticker
+
+// ── JSON-Builder ───────────────────────────────────────────────────────────
+buildJson(side, entry, sl, tp, conf, structOK, sweepOK, momOK, volumeOK, macroOK) =>
+    str.format(
+      '{' +
+      '"symbol":"{0}",' +
+      '"side":"{1}",' +
+      '"entry":{2,number,#.########},' +
+      '"stop_loss":{3,number,#.########},' +
+      '"take_profit":{4,number,#.########},' +
+      '"size":{5,number,#.##},' +
+      '"confidence":{6},' +
+      '"grading_criteria":{' +
+        '"structural_level":{7},' +
+        '"liquidity_sweep":{8},' +
+        '"momentum":{9},' +
+        '"volume":{10},' +
+        '"macro_alignment":{11},' +
+        '"no_contradiction":true' +
+      '},' +
+      '"macro_aligned":{12}' +
+      '}',
+      sym, side, entry, sl, tp, positionSize, conf,
+      structOK, sweepOK, momOK, volumeOK, macroOK, macroOK)
+
+// ── Alerts senden ──────────────────────────────────────────────────────────
+var string lastJson = ""
+
+if longSignal
+    entry = close
+    sl    = entry - atr * atrSlMult
+    tp    = entry + atr * atrTpMult
+    macro = htfTrend > 0
+    j = buildJson("BUY", entry, sl, tp, confidence,
+                  true, true, momOkLong, volOk, macro)
+    lastJson := j
+    alert(j, alert.freq_once_per_bar_close)
+    strategy.entry("L", strategy.long)
+    strategy.exit("L-Exit", from_entry="L", stop=sl, limit=tp)
+
+if shortSignal
+    entry = close
+    sl    = entry + atr * atrSlMult
+    tp    = entry - atr * atrTpMult
+    macro = htfTrend < 0
+    j = buildJson("SELL", entry, sl, tp, confidence,
+                  true, true, momOkShort, volOk, macro)
+    lastJson := j
+    alert(j, alert.freq_once_per_bar_close)
+    strategy.entry("S", strategy.short)
+    strategy.exit("S-Exit", from_entry="S", stop=sl, limit=tp)
+
+// JSON in einem Plot exposen, falls du via {{plot_0}} statt alert() arbeiten willst.
+plot(longSignal ? 1 : shortSignal ? -1 : 0, "signal", display = display.none)
