@@ -19,7 +19,6 @@ _REQUIRED_SECRETS: tuple[str, ...] = (
     "TRADE_CLAW_API_KEY",
     "SECRET_KEY",
     "ENCRYPTION_KEY",
-    "DB_PASSWORD",
 )
 
 # Obvious placeholders that should never be accepted.

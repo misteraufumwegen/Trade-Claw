@@ -79,9 +79,10 @@ Create an issue with:
 ### Prerequisites
 
 - Python 3.11+
-- Docker & Docker Compose
 - Git
-- Broker sandbox/paper trading account (Alpaca or OANDA)
+- Optional: a broker sandbox/paper-trading account (Alpaca, OANDA, Hyperliquid
+  testnet, or anything CCXT supports). Trade-Claw also ships a Mock broker that
+  needs no external account.
 
 ### Local Setup
 
@@ -109,9 +110,12 @@ Create an issue with:
    # Edit .env with your sandbox/paper trading credentials
    ```
 
-5. **Start services**
+5. **Start the app**
    ```bash
-   docker-compose up -d
+   # Windows: double-click start-app.bat
+   # macOS: double-click start-app.command (first time: chmod +x)
+   # Any platform:
+   python launcher.py
    ```
 
 6. **Run tests**
@@ -281,8 +285,9 @@ Good documentation is essential. Help us improve it!
 1. **Code Comments** — Explain *why*, not *what*
 2. **Docstrings** — Module, class, function documentation
 3. **README.md** — Getting started, quick reference
-4. **PRODUCTION_GUIDE.md** — Deployment and operations
-5. **Design Docs** — Architecture decisions (in `/docs/design/`)
+4. **docs/AUTOPILOT_SETUP.md** — TradingView webhook + autopilot setup
+5. **docs/CUSTOM_BROKERS.md** — Plugin-based broker registration
+6. **docs/design/DESIGN_SYSTEM.md** — UI design tokens (source of truth for `frontend/styles.css`)
 
 ### Updating Docs
 

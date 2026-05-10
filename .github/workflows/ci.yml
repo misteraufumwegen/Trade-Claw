@@ -48,9 +48,6 @@ jobs:
       SECRET_KEY: test-secret-do-not-use-in-prod
       ENCRYPTION_KEY: test-ci-encryption-key-placeholder
       TRADE_CLAW_API_KEY: test-ci-api-key-placeholder
-      DB_USER: test
-      DB_PASSWORD: test
-      DB_NAME: test
     steps:
       - uses: actions/checkout@v6
 
