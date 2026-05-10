@@ -3,16 +3,18 @@ Trade-Claw Backend
 Multi-broker trading infrastructure with risk management.
 
 Modules:
-- brokers: Adapter implementations (Mock, Hyperliquid, Alpaca, OANDA, etc.)
+- brokers: Adapter implementations + plugin registry (Mock, Hyperliquid,
+  CCXT-backed exchanges, and config-driven generic REST adapters)
 - api: Order API and normalization layer
 - routing: Session management and broker selection
-- wizard: Onboarding/configuration
-- security: Audit logging and compliance
+- ml: Feature extractor, scorer, trainer, bootstrap, grader
+- autopilot: TradingView webhook → grader → ML gate → risk → submit
+- correlation, macro: Auxiliary analysis modules
+- wizard: Onboarding / broker configuration
+- security: Auth, audit logging, env validation
 """
 
 __version__ = "0.3.0"
-__author__ = "Elon (CTO)"
-__description__ = "Multi-broker trading bot with risk management"
 
 from app.brokers.broker_interface import (
     BrokerAdapter,
