@@ -55,6 +55,7 @@ redis_data/
 # Testing
 .pytest_cache/
 .coverage
+coverage.xml
 htmlcov/
 
 # Temporary
