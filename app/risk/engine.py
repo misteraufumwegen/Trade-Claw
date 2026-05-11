@@ -8,6 +8,7 @@ from enum import Enum
 from sqlalchemy.orm import Session
 
 from app.db.models import Position, RiskLimit
+from app.risk import safety_gates as _safety_gates
 
 
 class RiskLevel(Enum):
@@ -101,6 +102,18 @@ class DBRiskEngine:
         )
         if not position_size_check.approved:
             return position_size_check
+
+        # 1b. Validate Stop-Loss distance cap (defense against malformed inputs)
+        sl_ok, sl_reason, sl_pct = _safety_gates.validate_sl_distance(
+            float(entry_price), float(stop_loss)
+        )
+        if not sl_ok:
+            return RiskValidationResult(
+                approved=False,
+                level=RiskLevel.BREACH,
+                message=f"Stop-loss too far from entry ({sl_pct:.2f}%)",
+                reason=sl_reason,
+            )
 
         # 2. Validate R/R Ratio (≥ 1.5:1)
         risk_reward_check = self._validate_risk_reward(
@@ -404,6 +417,13 @@ class RiskEngine:
             return False, {"checks": checks, "halt_reason": self.vault.halt_reason}
         checks["halted"] = True
 
+        # Consecutive-loss cooldown check (shared with autopilot + webhook)
+        in_cd, cd_reason = _safety_gates.is_in_cooldown()
+        if in_cd:
+            checks["cooldown"] = False
+            return False, {"checks": checks, "reason": cd_reason}
+        checks["cooldown"] = True
+
         # Position size check
         position_value = quantity * entry_price
         ps_valid, ps_reason, ps_pct = self.vault.validate_position_size(
@@ -412,6 +432,12 @@ class RiskEngine:
         checks["position_size"] = ps_valid
         if not ps_valid:
             return False, {"checks": checks, "reason": ps_reason, "position_pct": ps_pct}
+
+        # Stop-loss distance cap
+        sl_ok, sl_reason, sl_pct = _safety_gates.validate_sl_distance(entry_price, stop_loss)
+        checks["sl_distance"] = sl_ok
+        if not sl_ok:
+            return False, {"checks": checks, "reason": sl_reason, "sl_distance_pct": sl_pct}
 
         # All checks passed
         return True, {"checks": checks}

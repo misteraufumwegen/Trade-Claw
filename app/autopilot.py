@@ -63,10 +63,25 @@ def set_state(
     session_id: str | None = None,
     threshold: float | None = None,
     require_grade: list[str] | None = None,
+    force: bool = False,
 ) -> dict:
+    """Update autopilot state.
+
+    Going ``dry_run → live`` is gated by ``safety_gates.validate_dry_run_record``
+    unless ``force=True``. This prevents flipping straight from "untested" to
+    "real money" without rehearsing the pipeline first.
+    """
     if mode is not None:
         if mode not in {"off", "dry_run", "live"}:
             raise ValueError("mode must be off | dry_run | live")
+        if mode == "live" and not force:
+            # Local import to avoid pulling sqlalchemy into the autopilot
+            # module's import path.
+            from app.risk.safety_gates import validate_dry_run_record  # noqa: PLC0415
+
+            ok, reason = validate_dry_run_record(list(_state.history))
+            if not ok:
+                raise ValueError(reason or "DRY_RUN_INSUFFICIENT")
         _state.mode = mode
         _state.enabled_at = datetime.utcnow() if mode != "off" else None
     if session_id is not None:

@@ -13,7 +13,7 @@ from datetime import datetime
 from decimal import Decimal
 from pathlib import Path
 
-from fastapi import Depends, FastAPI, HTTPException, Query
+from fastapi import Depends, FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -549,6 +549,12 @@ def _resolve_outcome(
     row.pnl = Decimal(str(round(pnl, 8)))
     row.closed_price = Decimal(str(closed_price)) if closed_price is not None else None
     row.closed_at = datetime.utcnow()
+
+    # Feed the shared cooldown state machine so consecutive losses can pause
+    # autopilot AND manual trading paths uniformly.
+    from app.risk.safety_gates import record_outcome as _record_outcome  # noqa: PLC0415
+
+    _record_outcome(label)
 
 
 def _risk_ratio(side: str, entry: Decimal, sl: Decimal, tp: Decimal) -> Decimal | None:
@@ -2167,6 +2173,10 @@ class _AutopilotConfigRequest(BaseModel):
     session_id: str | None = Field(None, max_length=64)
     threshold: float | None = Field(None, ge=0.0, le=1.0)
     require_grade: list[str] | None = None
+    force: bool = Field(
+        False,
+        description="Skip the dry-run-minimum gate when transitioning to live mode",
+    )
 
 
 @app.get(
@@ -2188,6 +2198,7 @@ async def autopilot_configure(request: _AutopilotConfigRequest):
             session_id=request.session_id,
             threshold=request.threshold,
             require_grade=request.require_grade,
+            force=request.force,
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
@@ -2197,6 +2208,7 @@ async def autopilot_configure(request: _AutopilotConfigRequest):
 async def tradingview_webhook(
     secret: str,
     payload: dict,
+    request: Request,
     db: Session = Depends(get_db_session),
 ):
     """Receive a TradingView Pine alert and (optionally) auto-place an order.
@@ -2207,7 +2219,28 @@ async def tradingview_webhook(
     Behaviour: parse → grader → ML score → risk-engine validation → submit.
     The autopilot mode (off / dry_run / live) decides whether to actually
     submit. ``dry_run`` is your debugging mode.
+
+    Defense layers (rejected with 4xx before any business logic runs):
+    - TV_ALLOWED_IPS optional IP allowlist (Cloudflare-tunnel-aware)
+    - TV_WEBHOOK_SECRET shared secret in URL
+    - Cross-cutting consecutive-loss cooldown
     """
+    # Layer 1 — IP allowlist (skipped silently when TV_ALLOWED_IPS is empty).
+    from app.risk.safety_gates import (  # noqa: PLC0415
+        get_real_client_ip,
+        is_in_cooldown,
+        is_ip_allowed,
+    )
+
+    allowlist = os.getenv("TV_ALLOWED_IPS", "")
+    client_ip = get_real_client_ip(
+        dict(request.headers),
+        fallback=request.client.host if request.client else "",
+    )
+    if not is_ip_allowed(client_ip, allowlist):
+        logger.warning("TV webhook rejected: IP %s not in allowlist", client_ip)
+        raise HTTPException(status_code=403, detail="Forbidden")
+
     if not _ap_verify_secret(secret):
         # Don't leak whether the secret was missing or wrong.
         raise HTTPException(status_code=401, detail="Unauthorized")
@@ -2223,6 +2256,14 @@ async def tradingview_webhook(
     if state["mode"] == "off":
         decision["decision"] = "ignored"
         decision["reasons"].append("autopilot is off")
+        _ap_record(decision)
+        return decision
+
+    # Layer 3 — consecutive-loss cooldown (only meaningful when not off).
+    in_cd, cd_reason = is_in_cooldown()
+    if in_cd:
+        decision["decision"] = "rejected"
+        decision["reasons"].append(cd_reason or "cooldown active")
         _ap_record(decision)
         return decision
 
