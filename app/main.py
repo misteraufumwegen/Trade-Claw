@@ -99,6 +99,63 @@ import asyncio  # noqa: E402
 from contextlib import asynccontextmanager  # noqa: E402
 
 
+async def _macro_poller(
+    gdelt_interval: float,
+    gdacs_interval: float,
+    min_confirmations: int,
+    confirmation_window_minutes: int,
+    enable_gdelt: bool,
+    enable_gdacs: bool,
+) -> None:
+    """Poll GDELT (news) and GDACS (disasters) on independent timers.
+
+    Runs two child loops via ``asyncio.gather``. Each loop wraps its iteration
+    in a broad try/except so a transient API failure does not kill the loop.
+    """
+    from app.macro import GdacsClient, GdeltClient  # noqa: PLC0415
+
+    gdelt_client = GdeltClient() if enable_gdelt else None
+    gdacs_client = GdacsClient() if enable_gdacs else None
+
+    async def _gdelt_loop() -> None:
+        if gdelt_client is None:
+            return
+        while True:
+            try:
+                stats = await _macro_fetcher.poll_live_events(
+                    gdelt_client=gdelt_client,
+                    gdacs_client=None,
+                    min_confirmations=min_confirmations,
+                    confirmation_window_minutes=confirmation_window_minutes,
+                )
+                if stats.get("gdelt_new"):
+                    logger.info("Macro GDELT added %s new events", stats["gdelt_new"])
+            except asyncio.CancelledError:
+                raise
+            except Exception:  # noqa: BLE001
+                logger.exception("GDELT poll iteration failed")
+            await asyncio.sleep(gdelt_interval)
+
+    async def _gdacs_loop() -> None:
+        if gdacs_client is None:
+            return
+        while True:
+            try:
+                stats = await _macro_fetcher.poll_live_events(
+                    gdelt_client=None,
+                    gdacs_client=gdacs_client,
+                )
+                if stats.get("gdacs_new"):
+                    logger.info("Macro GDACS added %s new events", stats["gdacs_new"])
+            except asyncio.CancelledError:
+                raise
+            except Exception:  # noqa: BLE001
+                logger.exception("GDACS poll iteration failed")
+            await asyncio.sleep(gdacs_interval)
+
+    await asyncio.gather(_gdelt_loop(), _gdacs_loop())
+
+
 async def _outcome_poller(interval_seconds: float = 2.0) -> None:
     """Walk open TradeOutcome rows and resolve them when the broker has closed
     the position. Survives transient errors so a single bad row doesn't kill
@@ -168,6 +225,27 @@ async def _lifespan(app: FastAPI):
     poll_seconds = float(os.getenv("OUTCOME_POLL_SECONDS", "2"))
     task = asyncio.create_task(_outcome_poller(poll_seconds))
     logger.info("Outcome poller started (every %ss)", poll_seconds)
+
+    macro_task = None
+    enable_gdelt = os.getenv("MACRO_GDELT_ENABLED", "true").strip().lower() in {"1", "true", "yes"}
+    enable_gdacs = os.getenv("MACRO_GDACS_ENABLED", "true").strip().lower() in {"1", "true", "yes"}
+    if enable_gdelt or enable_gdacs:
+        macro_task = asyncio.create_task(
+            _macro_poller(
+                gdelt_interval=float(os.getenv("MACRO_GDELT_POLL_SECONDS", "90")),
+                gdacs_interval=float(os.getenv("MACRO_GDACS_POLL_SECONDS", "300")),
+                min_confirmations=int(os.getenv("MACRO_GDELT_MIN_DOMAINS", "2")),
+                confirmation_window_minutes=int(os.getenv("MACRO_GDELT_WINDOW_MINUTES", "60")),
+                enable_gdelt=enable_gdelt,
+                enable_gdacs=enable_gdacs,
+            )
+        )
+        logger.info(
+            "Macro poller started (GDELT=%s, GDACS=%s)",
+            enable_gdelt,
+            enable_gdacs,
+        )
+
     try:
         yield
     finally:
@@ -176,6 +254,12 @@ async def _lifespan(app: FastAPI):
             await task
         except asyncio.CancelledError:
             pass
+        if macro_task is not None:
+            macro_task.cancel()
+            try:
+                await macro_task
+            except asyncio.CancelledError:
+                pass
 
 
 # Initialize FastAPI app
@@ -1813,6 +1897,41 @@ async def macro_events(
     except Exception:
         logger.exception("Macro events fetch failed")
         raise HTTPException(status_code=500, detail="Macro fetch failed") from None
+
+
+@app.get("/api/v1/macro/sources")
+async def macro_sources():
+    """List which live providers feed the macro store and what the cadence is."""
+    enable_gdelt = os.getenv("MACRO_GDELT_ENABLED", "true").strip().lower() in {"1", "true", "yes"}
+    enable_gdacs = os.getenv("MACRO_GDACS_ENABLED", "true").strip().lower() in {"1", "true", "yes"}
+    from app.macro import DEFAULT_PACKS  # noqa: PLC0415
+
+    return {
+        "providers": {
+            "gdelt": {
+                "enabled": enable_gdelt,
+                "poll_seconds": float(os.getenv("MACRO_GDELT_POLL_SECONDS", "90")),
+                "min_domains": int(os.getenv("MACRO_GDELT_MIN_DOMAINS", "2")),
+                "window_minutes": int(os.getenv("MACRO_GDELT_WINDOW_MINUTES", "60")),
+                "packs": [
+                    {"name": p.name, "description": p.description, "query": p.gdelt_query}
+                    for p in DEFAULT_PACKS
+                ],
+            },
+            "gdacs": {
+                "enabled": enable_gdacs,
+                "poll_seconds": float(os.getenv("MACRO_GDACS_POLL_SECONDS", "300")),
+                "alert_levels": ["Red", "Orange"],
+            },
+        },
+        "store": {
+            "total_events": len(_macro_fetcher.events),
+            "by_source": {
+                src: sum(1 for e in _macro_fetcher.events if e.source == src)
+                for src in {e.source for e in _macro_fetcher.events}
+            },
+        },
+    }
 
 
 @app.get("/api/v1/macro/upcoming")
