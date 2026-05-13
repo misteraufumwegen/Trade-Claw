@@ -2089,6 +2089,28 @@ function SafetyPage() {
           Cloudflare-Tunnel: der reale Client-IP wird via <code>CF-Connecting-IP</code>-Header gematcht.
         </div>
       </Card>
+
+      <Card title="Audit-Log Chain-Integrity" style={{ marginTop: 16 }} action={
+        <Badge variant={data.audit_chain?.valid === false ? 'danger' : 'success'}>
+          {data.audit_chain?.valid === false ? 'BROKEN' : 'INTAKT'}
+        </Badge>
+      }>
+        <KvList items={[
+          ['Geprüfte Zeilen (letzte 200)', data.audit_chain?.rows_checked ?? 0],
+          ['Erste defekte ID', data.audit_chain?.first_break_id ?? '—'],
+        ]}/>
+        {data.audit_chain?.first_break_reason && (
+          <div className="alert-banner alert-critical mt-8">
+            <Icon name="alert"/>
+            <div>{data.audit_chain.first_break_reason}</div>
+          </div>
+        )}
+        <div className="t-body-sm text-muted" style={{ marginTop: 8 }}>
+          SHA-256 Hash-Chain über jede AuditLog-Zeile. Direkter DB-Zugriff
+          (Edit/Delete/Insert) wird beim Walk erkannt. Voller Walk via{' '}
+          <code>GET /api/v1/audit/verify</code>.
+        </div>
+      </Card>
     </div>
   );
 }
