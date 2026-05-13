@@ -287,6 +287,68 @@ class EventFilter:
             f"({len(recent)} events)",
         )
 
+    def find_blocking_red_events(
+        self,
+        events: list[MacroEvent],
+        symbol: str,
+        lookback_hours: int = 24,
+    ) -> list[MacroEvent]:
+        """Return CRITICAL events in the recent window whose assets_affected
+        overlap with ``symbol``.
+
+        Used by the autopilot to halt new entries when a disaster-grade
+        macro event (e.g. GDACS Red EQ, geopolitical escalation) is touching
+        the trade's asset. Match is case-insensitive substring in either
+        direction so ``USD`` ∈ ``BTCUSDT`` and ``EURUSD`` ⊇ ``EUR`` both
+        qualify — false positives lean toward blocking more, which is the
+        right direction for a safety gate.
+        """
+        from datetime import timedelta  # noqa: PLC0415
+
+        cutoff = datetime.utcnow() - timedelta(hours=lookback_hours)
+        symbol_upper = (symbol or "").upper().strip()
+        if not symbol_upper:
+            return []
+        blocking: list[MacroEvent] = []
+        for e in events:
+            if e.timestamp < cutoff:
+                continue
+            if e.impact != EventImpact.CRITICAL:
+                continue
+            for affected in e.assets_affected:
+                token = (affected or "").upper().strip()
+                if not token:
+                    continue
+                if token in symbol_upper or symbol_upper in token:
+                    blocking.append(e)
+                    break
+        return blocking
+
+    def volatility_size_multiplier(
+        self,
+        events: list[MacroEvent],
+        lookback_hours: int = 24,
+    ) -> tuple[float, str]:
+        """Position-size multiplier (∈ [0.3, 1.0]) driven by recent macro
+        volatility. Wraps :meth:`get_volatility_outlook` and maps the
+        outlook label to a size haircut.
+        """
+        from datetime import timedelta  # noqa: PLC0415
+
+        cutoff = datetime.utcnow() - timedelta(hours=lookback_hours)
+        recent = [e for e in events if e.timestamp >= cutoff]
+        outlook, expected_move = self.get_volatility_outlook(recent)
+        multiplier = {
+            "Low": 1.0,
+            "Medium": 0.8,
+            "High": 0.5,
+            "Extreme": 0.3,
+        }.get(outlook, 1.0)
+        return (
+            multiplier,
+            f"volatility={outlook} (expected move {expected_move:.1f}%) → ×{multiplier:.2f}",
+        )
+
     def get_volatility_outlook(self, events: list[MacroEvent]) -> tuple[str, float]:
         """
         Get expected volatility based on upcoming events.

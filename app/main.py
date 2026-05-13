@@ -2189,13 +2189,26 @@ async def safety_status():
 
     Surfaces everything that can block a live trade beyond the per-order
     risk-engine checks: the consecutive-loss cooldown, the SL-distance cap,
-    the dry-run-minimum progress, and the TradingView IP allowlist.
+    the dry-run-minimum progress, the TradingView IP allowlist, and the
+    macro overlay (volatility-driven size multiplier + active CRITICAL
+    events that would trigger geo-halt).
     """
+    from datetime import timedelta  # noqa: PLC0415
+
+    from app.macro.event_fetcher import EventImpact  # noqa: PLC0415
     from app.risk import safety_gates as _safety_gates  # noqa: PLC0415
 
     ap_state = _ap_get_state()
     allowlist_raw = os.getenv("TV_ALLOWED_IPS", "").strip()
     allowlist = [ip.strip() for ip in allowlist_raw.split(",") if ip.strip()]
+
+    vol_mult, vol_reason = _event_filter.volatility_size_multiplier(_macro_fetcher.events)
+    cutoff_24h = datetime.utcnow() - timedelta(hours=24)
+    active_critical = [
+        e
+        for e in _macro_fetcher.events
+        if e.impact == EventImpact.CRITICAL and e.timestamp >= cutoff_24h
+    ]
 
     return {
         "cooldown": _safety_gates.cooldown_status(),
@@ -2213,6 +2226,11 @@ async def safety_status():
             "configured": bool(allowlist),
             "addresses": allowlist,
             "documented_tv_ips": list(_safety_gates.TRADINGVIEW_PUBLIC_IPS),
+        },
+        "macro_overlay": {
+            "volatility_multiplier": vol_mult,
+            "volatility_reason": vol_reason,
+            "active_critical_events": len(active_critical),
         },
     }
 
@@ -2336,6 +2354,20 @@ async def tradingview_webhook(
         _ap_record(decision)
         return decision
 
+    # Geo-halt: block new entries while a CRITICAL macro event (e.g. GDACS
+    # Red earthquake) is currently affecting the symbol's asset class.
+    blocking = _event_filter.find_blocking_red_events(_macro_fetcher.events, signal.symbol)
+    if blocking:
+        decision["decision"] = "rejected"
+        decision["reasons"].append(
+            f"geo-halt: {len(blocking)} CRITICAL macro event(s) affecting {signal.symbol}"
+        )
+        decision["blocking_events"] = [
+            {"event_id": e.event_id, "title": e.title} for e in blocking[:3]
+        ]
+        _ap_record(decision)
+        return decision
+
     # Grade the setup with the existing 7-criteria grader so we can apply
     # the require_grade filter. We default missing criteria to True for the
     # evidence-based ones (TV alert claims it found them) and let the engine
@@ -2406,6 +2438,16 @@ async def tradingview_webhook(
         risk_distance = abs(signal.entry - signal.stop_loss)
         size = (balance_value * 0.02 / risk_distance) if risk_distance else 0.0
     decision["size"] = size
+
+    # Volatility-aware size scaling: when recent macro events imply elevated
+    # broad-market volatility, shrink the position. No-op when calm (×1.0).
+    vol_mult, vol_reason = _event_filter.volatility_size_multiplier(_macro_fetcher.events)
+    if vol_mult < 1.0:
+        decision["size_original"] = size
+        decision["size_multiplier"] = vol_mult
+        decision["size_multiplier_reason"] = vol_reason
+        size = size * vol_mult
+        decision["size"] = size
 
     if size <= 0:
         decision["decision"] = "rejected"
