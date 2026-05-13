@@ -254,6 +254,7 @@ input, select, textarea { font-family: inherit; }
 .alert-critical { background: rgba(244,67,54,0.08); border-color: rgba(244,67,54,0.3); color: var(--danger-200); }
 .alert-warn { background: rgba(255,152,0,0.08); border-color: rgba(255,152,0,0.3); color: var(--warning-200); }
 .alert-info { background: rgba(33,150,243,0.08); border-color: rgba(33,150,243,0.3); color: var(--primary-300); }
+.alert-success { background: rgba(76,175,80,0.08); border-color: rgba(76,175,80,0.3); color: var(--success-200); }
 .alert-icon { width: 18px; height: 18px; flex-shrink: 0; }
 
 /* KPI cards */

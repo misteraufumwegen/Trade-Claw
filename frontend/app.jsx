@@ -1908,6 +1908,191 @@ function BrokersPage() {
   );
 }
 
+// ─── Safety Dashboard ──────────────────────────────────────
+function SafetyPage() {
+  const toast = useToast();
+  const [data, setData] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [lastUpdate, setLastUpdate] = useState(null);
+
+  const load = useCallback(async () => {
+    setBusy(true);
+    try {
+      const res = await Api.safetyStatus();
+      setData(res);
+      setLastUpdate(new Date());
+    } catch (e) {
+      toast.push('error', e.message);
+    } finally {
+      setBusy(false);
+    }
+  }, [toast]);
+
+  // Initial load + 10-second poll (state changes are slow — outcomes, macro polls)
+  useEffect(() => {
+    let stopped = false;
+    let timer = null;
+    const tick = async () => {
+      if (stopped) return;
+      try {
+        const res = await Api.safetyStatus();
+        if (!stopped) { setData(res); setLastUpdate(new Date()); }
+      } catch { /* swallow; manual reload available */ }
+      if (!stopped) timer = setTimeout(tick, 10000);
+    };
+    tick();
+    return () => { stopped = true; if (timer) clearTimeout(timer); };
+  }, []);
+
+  if (!data) {
+    return (
+      <div className="page">
+        <div className="page-head"><div><div className="breadcrumb">SAFETY</div><h1 className="t-h1">Safety Dashboard</h1></div></div>
+        <div className="t-body text-muted">Lade Safety-Status…</div>
+      </div>
+    );
+  }
+
+  const cd = data.cooldown || {};
+  const cdActive = !!cd.cooldown_until;
+  const dr = data.dry_run || {};
+  const drMet = !!dr.live_transition_allowed;
+  const ip = data.ip_allowlist || {};
+  const overlay = data.macro_overlay || {};
+  const sl = data.sl_distance || {};
+
+  const multClass = m => m >= 1.0 ? 'success' : m >= 0.7 ? 'info' : m >= 0.4 ? 'warning' : 'danger';
+
+  return (
+    <div className="page">
+      <div className="page-head">
+        <div>
+          <div className="breadcrumb">SAFETY</div>
+          <h1 className="t-h1">Safety Dashboard</h1>
+          <div className="t-body-sm text-muted">
+            Cross-cutting Gates: was kann einen Live-Trade jenseits der Risk-Engine blockieren.
+          </div>
+        </div>
+        <div className="row gap-8">
+          {lastUpdate && <div className="timestamp">Updated {lastUpdate.toLocaleTimeString('de-DE')}</div>}
+          <button className="btn btn-secondary btn-sm" onClick={load} disabled={busy}>
+            <Icon name="refresh"/> Reload
+          </button>
+        </div>
+      </div>
+
+      {/* Big top banner: live-transition allowance */}
+      <div className={`alert-banner ${drMet ? 'alert-success' : 'alert-warn'} mb-16`}>
+        <Icon name={drMet ? 'check' : 'lock'}/>
+        <div>
+          <b>Live-Transition {drMet ? 'erlaubt' : 'gesperrt'}.</b>{' '}
+          {drMet
+            ? `Du hast ${dr.current_count}/${dr.min_required} dry-run Trades — wechsel in den Live-Mode ist freigegeben.`
+            : `Erst ${dr.current_count}/${dr.min_required} dry-run Trades gesammelt. Live-Mode bleibt gesperrt (oder force:true im API-Call).`}
+        </div>
+      </div>
+
+      <div className="grid mb-16" style={{ gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+        {/* Cooldown */}
+        <Card title="Consecutive-Loss Cooldown" action={
+          <Badge variant={cdActive ? 'danger' : 'success'}>{cdActive ? 'AKTIV' : 'inaktiv'}</Badge>
+        }>
+          <KvList items={[
+            ['Verlust-Streak', `${cd.consecutive_losses ?? 0} / ${cd.max_consecutive_losses ?? 3}`],
+            ['Pause-Dauer', `${cd.cooldown_minutes ?? 60} min`],
+            ['Pause bis', cd.cooldown_until ? new Date(cd.cooldown_until).toLocaleString('de-DE') : '—'],
+          ]}/>
+          <div className="t-body-sm text-muted" style={{ marginTop: 8 }}>
+            Nach N Losses in Folge wird Trading für M Minuten pausiert. Ein Win resetet den Streak.
+          </div>
+        </Card>
+
+        {/* SL distance */}
+        <Card title="Stop-Loss Distance Cap">
+          <KvList items={[
+            ['Hard-Cap', `${(sl.cap_pct ?? 5).toFixed(1)} %`],
+          ]}/>
+          <div className="t-body-sm text-muted" style={{ marginTop: 8 }}>
+            Orders mit SL weiter als <b>{(sl.cap_pct ?? 5).toFixed(1)}%</b> vom Entry werden von der Risk-Engine
+            abgelehnt. Schützt vor fehlerhaften Webhook-Payloads und Modell-Bugs.
+          </div>
+        </Card>
+
+        {/* Dry-Run minimum */}
+        <Card title="Dry-Run Minimum" action={
+          <Badge variant={drMet ? 'success' : 'warning'}>{drMet ? 'ERFÜLLT' : 'OFFEN'}</Badge>
+        }>
+          <KvList items={[
+            ['Aktuell', `${dr.current_count ?? 0}`],
+            ['Benötigt', `${dr.min_required ?? 20}`],
+            ['Live-Schalter', drMet ? 'freigegeben' : 'gesperrt'],
+          ]}/>
+          <Progress
+            pct={Math.min(100, ((dr.current_count ?? 0) / Math.max(1, dr.min_required ?? 20)) * 100)}
+            variant={drMet ? 'success' : 'warning'}
+          />
+          <div className="t-body-sm text-muted" style={{ marginTop: 8 }}>
+            Übergang von <code>dry_run → live</code> ist erst nach <b>{dr.min_required ?? 20}</b> would-submit-Trades
+            erlaubt. Bypass: <code>{'{"mode":"live","force":true}'}</code>.
+          </div>
+        </Card>
+
+        {/* Macro overlay */}
+        <Card title="Macro Overlay" action={
+          <Badge variant={multClass(overlay.volatility_multiplier ?? 1)}>
+            ×{(overlay.volatility_multiplier ?? 1).toFixed(2)}
+          </Badge>
+        }>
+          <KvList items={[
+            ['Position-Size-Multiplier', `×${(overlay.volatility_multiplier ?? 1).toFixed(2)}`],
+            ['Aktive CRITICAL-Events (24h)', `${overlay.active_critical_events ?? 0}`],
+          ]}/>
+          <div className="t-body-sm text-muted" style={{ marginTop: 8 }}>
+            {overlay.volatility_reason || '—'}
+          </div>
+          <div className="t-body-sm text-muted" style={{ marginTop: 4 }}>
+            Geo-Halt blockiert neue Entries wenn ein CRITICAL-Event das Symbol betrifft.
+          </div>
+        </Card>
+      </div>
+
+      {/* IP allowlist — full width */}
+      <Card title="TradingView Webhook IP-Allowlist" action={
+        <Badge variant={ip.configured ? 'success' : 'warning'}>
+          {ip.configured ? 'KONFIGURIERT' : 'OFFEN'}
+        </Badge>
+      }>
+        {ip.configured ? (
+          <>
+            <div className="t-body" style={{ marginBottom: 8 }}>Erlaubte IPs ({(ip.addresses || []).length}):</div>
+            <div className="row gap-8" style={{ flexWrap: 'wrap' }}>
+              {(ip.addresses || []).map(addr => (
+                <code key={addr} className="badge badge-info">{addr}</code>
+              ))}
+            </div>
+          </>
+        ) : (
+          <div className="t-body text-muted">
+            Allowlist ist leer — Webhook akzeptiert Requests von jeder IP. Setze <code>TV_ALLOWED_IPS</code>{' '}
+            in <code>.env</code> als Defense-in-Depth gegen Secret-Leaks.
+          </div>
+        )}
+        <div className="t-body-sm text-muted" style={{ marginTop: 12 }}>
+          Dokumentierte TradingView-IPs (Stand der Code-Defaults):
+        </div>
+        <div className="row gap-8" style={{ flexWrap: 'wrap', marginTop: 4 }}>
+          {(ip.documented_tv_ips || []).map(addr => (
+            <code key={addr} className="badge badge-neutral">{addr}</code>
+          ))}
+        </div>
+        <div className="t-body-sm text-faint" style={{ marginTop: 8 }}>
+          Cloudflare-Tunnel: der reale Client-IP wird via <code>CF-Connecting-IP</code>-Header gematcht.
+        </div>
+      </Card>
+    </div>
+  );
+}
+
 // ─── Settings ──────────────────────────────────────────────
 function Settings({ onReconfigure }) {
   const toast = useToast();
@@ -2080,6 +2265,7 @@ function Shell() {
     { k: 'autopilot',   label: 'ML & Autopilot',   ic: 'zap' },
     { k: 'backtest',    label: 'Backtest',         ic: 'analytics' },
     { k: 'risk',        label: 'Risk Management',  ic: 'risk' },
+    { k: 'safety',      label: 'Safety Dashboard', ic: 'lock' },
     { k: 'grader',      label: 'Trade Grader',     ic: 'zap' },
     { k: 'correlation', label: 'Correlation',      ic: 'analytics' },
     { k: 'macro',       label: 'Macro Events',     ic: 'bell' },
@@ -2139,6 +2325,7 @@ function Shell() {
         {page === 'autopilot'   && <MlAutopilotPage />}
         {page === 'backtest'    && <BacktestPage />}
         {page === 'risk'        && <RiskManagement live={live} onHalt={() => setHaltOpen(true)} />}
+        {page === 'safety'      && <SafetyPage />}
         {page === 'grader'      && <GraderPage />}
         {page === 'correlation' && <CorrelationPage />}
         {page === 'macro'       && <MacroPage />}

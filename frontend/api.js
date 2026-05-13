@@ -233,6 +233,10 @@ const Api = {
     return request('/api/v1/autopilot', { method: 'POST', body: payload });
   },
 
+  // Safety dashboard — cross-cutting gates (cooldown, SL cap, dry-run min,
+  // IP allowlist, macro overlay) all in one diagnostic snapshot.
+  safetyStatus() { return request('/api/v1/safety/status'); },
+
   // Close trade (manual outcome resolution)
   closeOrder(order_id, { closed_price, status = 'FILLED' }) {
     return request(`/api/v1/orders/${encodeURIComponent(order_id)}/close`, {
