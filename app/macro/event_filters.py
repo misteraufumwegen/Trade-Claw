@@ -9,6 +9,7 @@ Implements:
 """
 
 import logging
+from datetime import datetime
 from enum import Enum
 
 from .event_fetcher import EventDirection, EventImpact, MacroEvent
@@ -243,6 +244,48 @@ class EventFilter:
             return "Risk-Off", net_score
         else:
             return "Neutral", net_score
+
+    def derive_alignment_for_direction(
+        self,
+        events: list["MacroEvent"],
+        side: str,
+        lookback_hours: int = 6,
+    ) -> tuple[bool | None, str]:
+        """Derive a macro_alignment flag for a trade in ``side`` direction.
+
+        Used by the TradingView webhook as a fallback when the payload does
+        not set ``macro_aligned`` explicitly. Maps the recent macro sentiment
+        to a per-direction alignment:
+
+        - BUY  (long risk asset)  → aligned when sentiment is Risk-On or Neutral
+        - SELL (short risk asset) → aligned when sentiment is Risk-Off or Neutral
+
+        Returns ``(None, reason)`` when there is not enough data (recent event
+        list is empty) so the caller can fall through to its own default
+        instead of making things up.
+        """
+        from datetime import timedelta  # noqa: PLC0415
+
+        cutoff = datetime.utcnow() - timedelta(hours=lookback_hours)
+        recent = [e for e in events if e.timestamp >= cutoff]
+        if not recent:
+            return None, f"no macro events in last {lookback_hours}h"
+
+        sentiment, score = self.get_macro_sentiment(recent)
+        side_norm = (side or "").upper().strip()
+        if side_norm in {"BUY", "LONG"}:
+            aligned = sentiment in {"Risk-On", "Neutral"}
+        elif side_norm in {"SELL", "SHORT"}:
+            aligned = sentiment in {"Risk-Off", "Neutral"}
+        else:
+            return None, f"unsupported side: {side!r}"
+
+        verdict = "aligned" if aligned else "contradicts"
+        return (
+            aligned,
+            f"sentiment={sentiment} ({score:.0f}/100) {verdict} {side_norm} over last {lookback_hours}h "
+            f"({len(recent)} events)",
+        )
 
     def get_volatility_outlook(self, events: list[MacroEvent]) -> tuple[str, float]:
         """

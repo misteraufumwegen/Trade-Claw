@@ -155,13 +155,15 @@ def count_dry_run_would_submits(history: list[dict[str, Any]]) -> int:
     """Count how many decisions in the autopilot history were dry-run trades
     that *would* have submitted in live mode. These are the meaningful
     rehearsal data points."""
+    # All forms the autopilot pipeline currently emits when the pipeline
+    # cleared every gate and the only thing stopping a real order was the
+    # dry_run mode flag. Keep this list aligned with main.tradingview_webhook.
+    accepted = {"would_submit", "submitted", "dry_run_submit", "approved_dry_run"}
     n = 0
     for entry in history:
         if entry.get("mode") != "dry_run":
             continue
-        decision = entry.get("decision", "")
-        # Any decision that represents "the pipeline would have submitted":
-        if decision in {"would_submit", "submitted", "dry_run_submit"}:
+        if entry.get("decision", "") in accepted:
             n += 1
     return n
 

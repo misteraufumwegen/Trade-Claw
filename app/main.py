@@ -1864,10 +1864,11 @@ async def correlation_analyze(request: _CorrelationAnalyzeRequest):
 # Macro Events (app/macro)
 # ---------------------------------------------------------------------------
 
-from app.macro import EventScorer, MacroEventFetcher  # noqa: E402
+from app.macro import EventFilter, EventScorer, MacroEventFetcher  # noqa: E402
 
 _macro_fetcher = MacroEventFetcher()
 _event_scorer = EventScorer()
+_event_filter = EventFilter()
 
 
 @app.get("/api/v1/macro/events")
@@ -2180,6 +2181,43 @@ class _AutopilotConfigRequest(BaseModel):
 
 
 @app.get(
+    "/api/v1/safety/status",
+    dependencies=[Depends(require_api_key)],
+)
+async def safety_status():
+    """Snapshot of the cross-cutting safety gates.
+
+    Surfaces everything that can block a live trade beyond the per-order
+    risk-engine checks: the consecutive-loss cooldown, the SL-distance cap,
+    the dry-run-minimum progress, and the TradingView IP allowlist.
+    """
+    from app.risk import safety_gates as _safety_gates  # noqa: PLC0415
+
+    ap_state = _ap_get_state()
+    allowlist_raw = os.getenv("TV_ALLOWED_IPS", "").strip()
+    allowlist = [ip.strip() for ip in allowlist_raw.split(",") if ip.strip()]
+
+    return {
+        "cooldown": _safety_gates.cooldown_status(),
+        "sl_distance": {
+            "cap_pct": float(os.getenv("MAX_SL_DISTANCE_PCT", "5.0")),
+        },
+        "dry_run": {
+            "min_required": int(os.getenv("MIN_DRY_RUN_TRADES", "20")),
+            "current_count": _safety_gates.count_dry_run_would_submits(ap_state["history"]),
+            "live_transition_allowed": _safety_gates.validate_dry_run_record(ap_state["history"])[
+                0
+            ],
+        },
+        "ip_allowlist": {
+            "configured": bool(allowlist),
+            "addresses": allowlist,
+            "documented_tv_ips": list(_safety_gates.TRADINGVIEW_PUBLIC_IPS),
+        },
+    }
+
+
+@app.get(
     "/api/v1/autopilot",
     dependencies=[Depends(require_api_key)],
 )
@@ -2303,6 +2341,30 @@ async def tradingview_webhook(
     # evidence-based ones (TV alert claims it found them) and let the engine
     # enforce R/R + macro alignment from the payload.
     crits = signal.grading_criteria or {}
+
+    # Resolve macro_alignment with explicit precedence:
+    #   1) payload's grading_criteria.macro_alignment (explicit override)
+    #   2) payload's top-level macro_aligned             (explicit override)
+    #   3) auto-derive from the live macro store         (GDELT + GDACS)
+    #   4) False                                          (conservative default)
+    if "macro_alignment" in crits:
+        macro_aligned = bool(crits["macro_alignment"])
+        decision["macro_source"] = "payload.grading_criteria"
+    elif signal.macro_aligned is not None:
+        macro_aligned = bool(signal.macro_aligned)
+        decision["macro_source"] = "payload.macro_aligned"
+    else:
+        derived, reason = _event_filter.derive_alignment_for_direction(
+            events=_macro_fetcher.events,
+            side=signal.side,
+        )
+        if derived is None:
+            macro_aligned = False
+            decision["macro_source"] = f"default_false ({reason})"
+        else:
+            macro_aligned = derived
+            decision["macro_source"] = f"auto ({reason})"
+
     setup = _trade_grader.grade(
         symbol=signal.symbol,
         direction="LONG" if signal.side == "BUY" else "SHORT",
@@ -2316,7 +2378,7 @@ async def tradingview_webhook(
             momentum=bool(crits.get("momentum", True)),
             volume=bool(crits.get("volume", True)),
             risk_reward=False,  # validated by grader
-            macro_alignment=bool(crits.get("macro_alignment", signal.macro_aligned or False)),
+            macro_alignment=macro_aligned,
             no_contradiction=bool(crits.get("no_contradiction", True)),
         ),
         confidence=signal.confidence or 70.0,
