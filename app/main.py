@@ -1072,6 +1072,44 @@ async def submit_order(
                     idempotency_key=idem_key,
                 )
 
+        # Macro geo-halt — block manual entries while a CRITICAL macro event
+        # is touching the symbol. Symmetric with the autopilot webhook.
+        # Opt-out via MACRO_GEO_HALT_MANUAL=false (default on).
+        if os.getenv("MACRO_GEO_HALT_MANUAL", "true").strip().lower() in {"1", "true", "yes"}:
+            blocking = _event_filter.find_blocking_red_events(_macro_fetcher.events, request.symbol)
+            if blocking:
+                titles = ", ".join(e.title for e in blocking[:3])
+                db.add(
+                    AuditLog(
+                        session_id=session_id,
+                        action="ORDER_REJECTED",
+                        symbol=request.symbol,
+                        details=f"geo-halt: {len(blocking)} CRITICAL macro event(s): {titles}",
+                        severity="WARNING",
+                    )
+                )
+                db.commit()
+                raise HTTPException(
+                    status_code=400,
+                    detail=(
+                        f"Geo-halt: {len(blocking)} CRITICAL macro event(s) "
+                        f"affecting {request.symbol}"
+                    ),
+                )
+
+        # Macro vola-scaling — shrink position size when broad-market volatility
+        # is elevated. Symmetric with the autopilot webhook.
+        # Opt-out via MACRO_AUTOSCALE_MANUAL=false (default on).
+        effective_size = request.size
+        size_macro_multiplier = 1.0
+        size_macro_reason: str | None = None
+        if os.getenv("MACRO_AUTOSCALE_MANUAL", "true").strip().lower() in {"1", "true", "yes"}:
+            vol_mult, vol_reason = _event_filter.volatility_size_multiplier(_macro_fetcher.events)
+            if vol_mult < 1.0:
+                size_macro_multiplier = vol_mult
+                size_macro_reason = vol_reason
+                effective_size = Decimal(str(round(float(request.size) * vol_mult, 8)))
+
         # Account balance (fetched via broker adapter)
         risk_engine = RiskEngine(db)
         adapter = await router.get_api_adapter(session_id)
@@ -1116,7 +1154,7 @@ async def submit_order(
             entry_price=float(request.entry_price),
             stop_loss=float(request.stop_loss),
             take_profit=float(request.take_profit),
-            size=float(request.size),
+            size=float(effective_size),
             account_balance=float(account_balance),
             grading_criteria=request.grading_criteria,
             drawdown_pct=drawdown_pct,
@@ -1150,7 +1188,7 @@ async def submit_order(
             account_balance=account_balance,
             symbol=request.symbol,
             side=request.side,
-            size=request.size,
+            size=effective_size,
             entry_price=request.entry_price,
             stop_loss=request.stop_loss,
             take_profit=request.take_profit,
@@ -1180,7 +1218,7 @@ async def submit_order(
         api_request = OrderAPIRequest(
             symbol=request.symbol,
             direction=OrderDirection(request.side),
-            quantity=float(request.size),
+            quantity=float(effective_size),
             entry_price=float(request.entry_price),
             stop_loss=float(request.stop_loss),
             take_profit=float(request.take_profit),
@@ -1203,7 +1241,7 @@ async def submit_order(
             order_id=broker_order.order_id,
             symbol=request.symbol,
             side=request.side,
-            size=request.size,
+            size=effective_size,
             entry_price=request.entry_price,
             stop_loss=request.stop_loss,
             take_profit=request.take_profit,
@@ -1222,22 +1260,28 @@ async def submit_order(
             entry_price=request.entry_price,
             stop_loss=request.stop_loss,
             take_profit=request.take_profit,
-            size=request.size,
+            size=effective_size,
             ml_score_at_submit=ml_score,
             **{k: v for k, v in feature_snapshot.as_dict().items() if k.startswith("f_")},
         )
         db.add(outcome_row)
 
+        details = (
+            f"Order {broker_order.order_id} submitted: "
+            f"{request.side} {effective_size} @ {request.entry_price}"
+        )
+        if size_macro_multiplier < 1.0:
+            details += f" · macro-scaled ×{size_macro_multiplier:.2f} from {request.size}" + (
+                f" ({size_macro_reason})" if size_macro_reason else ""
+            )
+        if ml_score is not None:
+            details += f" · ml_score={ml_score:.3f}"
         db.add(
             AuditLog(
                 session_id=session_id,
                 action="ORDER_SUBMITTED",
                 symbol=request.symbol,
-                details=(
-                    f"Order {broker_order.order_id} submitted: "
-                    f"{request.side} {request.size} @ {request.entry_price}"
-                    + (f" · ml_score={ml_score:.3f}" if ml_score is not None else "")
-                ),
+                details=details,
                 severity="INFO",
             )
         )
@@ -1250,15 +1294,21 @@ async def submit_order(
             f"{ml_score:.3f}" if ml_score is not None else "n/a",
         )
 
+        message = f"Order {broker_order.order_id} submitted successfully"
+        if size_macro_multiplier < 1.0:
+            message += (
+                f" — size auto-scaled ×{size_macro_multiplier:.2f} "
+                f"(requested {request.size}, executed {effective_size})"
+            )
         return OrderSubmitResponse(
             order_id=broker_order.order_id,
             status=order_status,
             symbol=request.symbol,
             side=request.side,
-            size=request.size,
+            size=effective_size,
             entry_price=request.entry_price,
             created_at=datetime.utcnow(),
-            message=f"Order {broker_order.order_id} submitted successfully",
+            message=message,
             risk_ratio=risk_ratio,
             idempotency_key=idem_key,
             ml_score=ml_score,
