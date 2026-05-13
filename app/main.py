@@ -57,6 +57,13 @@ validate_environment()
 # Initialize database
 init_db()
 
+# Wire up the audit-log hash chain (tamper-evident insert chain). Attaches
+# globally to the AuditLog class so every db.add(AuditLog(...)) call across
+# the codebase automatically gets a chained hash. Idempotent.
+from app.security.audit_chain import attach_listener as _attach_audit_chain  # noqa: E402
+
+_attach_audit_chain()
+
 
 # ---------------------------------------------------------------------------
 # Vault — DatabaseStorage backend (C3)
@@ -1684,6 +1691,30 @@ async def get_positions(
 
 
 @app.get(
+    "/api/v1/audit/verify",
+    dependencies=[Depends(require_api_key)],
+)
+async def audit_verify(
+    limit: int | None = Query(
+        None,
+        ge=1,
+        le=100_000,
+        description="Only verify the latest N rows. Omit for full-table walk.",
+    ),
+    db: Session = Depends(get_db_session),
+):
+    """Re-walk the audit log hash chain and report integrity status.
+
+    Returns the first id where the chain breaks (None if intact). Useful as a
+    cheap post-incident integrity check and as the data source for the safety
+    dashboard's tamper indicator.
+    """
+    from app.security.audit_chain import verify_chain  # noqa: PLC0415
+
+    return verify_chain(db, limit=limit)
+
+
+@app.get(
     "/api/v1/audit",
     response_model=AuditLogExportResponse,
     dependencies=[Depends(require_api_key)],
@@ -2234,19 +2265,21 @@ class _AutopilotConfigRequest(BaseModel):
     "/api/v1/safety/status",
     dependencies=[Depends(require_api_key)],
 )
-async def safety_status():
+async def safety_status(db: Session = Depends(get_db_session)):
     """Snapshot of the cross-cutting safety gates.
 
     Surfaces everything that can block a live trade beyond the per-order
     risk-engine checks: the consecutive-loss cooldown, the SL-distance cap,
-    the dry-run-minimum progress, the TradingView IP allowlist, and the
-    macro overlay (volatility-driven size multiplier + active CRITICAL
-    events that would trigger geo-halt).
+    the dry-run-minimum progress, the TradingView IP allowlist, the macro
+    overlay (volatility-driven size multiplier + active CRITICAL events that
+    would trigger geo-halt), and the audit-log hash-chain integrity over
+    the most recent 200 rows.
     """
     from datetime import timedelta  # noqa: PLC0415
 
     from app.macro.event_fetcher import EventImpact  # noqa: PLC0415
     from app.risk import safety_gates as _safety_gates  # noqa: PLC0415
+    from app.security.audit_chain import verify_chain as _verify_chain  # noqa: PLC0415
 
     ap_state = _ap_get_state()
     allowlist_raw = os.getenv("TV_ALLOWED_IPS", "").strip()
@@ -2282,6 +2315,7 @@ async def safety_status():
             "volatility_reason": vol_reason,
             "active_critical_events": len(active_critical),
         },
+        "audit_chain": _verify_chain(db, limit=200),
     }
 
 
