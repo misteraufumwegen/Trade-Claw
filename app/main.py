@@ -2316,6 +2316,17 @@ async def safety_status(db: Session = Depends(get_db_session)):
             "active_critical_events": len(active_critical),
         },
         "audit_chain": _verify_chain(db, limit=200),
+        # Inputs the frontend's Pre-Live Readiness checklist needs without
+        # forcing it to call multiple endpoints.
+        "autopilot": {
+            "mode": ap_state["mode"],
+            "session_id_set": bool(ap_state.get("session_id")),
+        },
+        "environment": {
+            "tv_webhook_secret_set": bool(os.getenv("TV_WEBHOOK_SECRET", "").strip()),
+            "ml_gate_mode": os.getenv("ML_GATE_MODE", "advisory"),
+            "ml_threshold": float(os.getenv("ML_THRESHOLD", "0.5")),
+        },
     }
 
 

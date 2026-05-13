@@ -1909,6 +1909,96 @@ function BrokersPage() {
 }
 
 // ─── Safety Dashboard ──────────────────────────────────────
+function ReadinessChecklist({ data }) {
+  const cd = data.cooldown || {};
+  const dr = data.dry_run || {};
+  const ip = data.ip_allowlist || {};
+  const overlay = data.macro_overlay || {};
+  const ap = data.autopilot || {};
+  const envBlock = data.environment || {};
+  const audit = data.audit_chain || {};
+
+  // Each check item has: label, ok (true/false), severity ('error'|'warn'),
+  // detail (short why). Severity=warn means "advisory, not blocking".
+  const checks = [
+    { label: 'Dry-Run-Minimum erfüllt',
+      ok: !!dr.live_transition_allowed,
+      severity: 'error',
+      detail: `${dr.current_count ?? 0}/${dr.min_required ?? 20} would-submit Trades` },
+    { label: 'Kein Loss-Cooldown aktiv',
+      ok: !cd.cooldown_until,
+      severity: 'error',
+      detail: cd.cooldown_until ? `Pause bis ${new Date(cd.cooldown_until).toLocaleString('de-DE')}` : 'Streak sauber' },
+    { label: 'Autopilot session_id konfiguriert',
+      ok: !!ap.session_id_set,
+      severity: 'error',
+      detail: ap.session_id_set ? 'gesetzt' : 'fehlt — Autopilot kennt keinen Broker' },
+    { label: 'TV-Webhook-Secret gesetzt',
+      ok: !!envBlock.tv_webhook_secret_set,
+      severity: 'error',
+      detail: envBlock.tv_webhook_secret_set ? 'gesetzt (.env)' : 'fehlt — Webhook deaktiviert' },
+    { label: 'Audit-Chain intakt',
+      ok: audit.valid !== false,
+      severity: 'error',
+      detail: audit.valid === false ? `Bruch bei id=${audit.first_break_id}` : `${audit.rows_checked ?? 0} Zeilen verifiziert` },
+    { label: 'IP-Allowlist konfiguriert',
+      ok: !!ip.configured,
+      severity: 'warn',
+      detail: ip.configured ? `${(ip.addresses || []).length} IPs erlaubt` : 'leer = allow-all (Defense-in-Depth fehlt)' },
+    { label: 'Keine aktiven CRITICAL-Macro-Events',
+      ok: (overlay.active_critical_events ?? 0) === 0,
+      severity: 'warn',
+      detail: overlay.active_critical_events > 0 ? `${overlay.active_critical_events} Event(s) blockieren Symbole` : 'ruhig' },
+    { label: 'Volatilität normal (multiplier ×1.0)',
+      ok: (overlay.volatility_multiplier ?? 1) >= 1.0,
+      severity: 'warn',
+      detail: `×${(overlay.volatility_multiplier ?? 1).toFixed(2)}` },
+    { label: 'ML-Gate aktiv (advisory oder enforce)',
+      ok: envBlock.ml_gate_mode !== 'off',
+      severity: 'warn',
+      detail: `ML_GATE_MODE=${envBlock.ml_gate_mode || '—'}` },
+  ];
+
+  const errorsOpen = checks.filter(c => !c.ok && c.severity === 'error').length;
+  const warningsOpen = checks.filter(c => !c.ok && c.severity === 'warn').length;
+  const ready = errorsOpen === 0;
+
+  return (
+    <Card title="Pre-Live Readiness" style={{ marginBottom: 16 }} action={
+      <Badge variant={ready ? (warningsOpen === 0 ? 'success' : 'warning') : 'danger'}>
+        {ready
+          ? (warningsOpen === 0 ? 'ALLES GRÜN' : `${warningsOpen} WARNUNG(EN)`)
+          : `${errorsOpen} BLOCKER`}
+      </Badge>
+    }>
+      <div className="t-body-sm text-muted" style={{ marginBottom: 12 }}>
+        Synthese aus den Gates unten. <b>Blocker</b> verhindern Live-Trading.{' '}
+        <b>Warnungen</b> sind beratend — du kannst Live-Mode trotzdem aktivieren,
+        sollst sie aber kennen.
+      </div>
+      <div style={{ display: 'grid', gap: 6 }}>
+        {checks.map((c, i) => (
+          <div key={i} className="row gap-8" style={{ alignItems: 'baseline' }}>
+            <span style={{ minWidth: 18 }}>
+              {c.ok
+                ? <Icon name="check"/>
+                : <span className={c.severity === 'error' ? 'text-danger' : 'text-warning'}>
+                    <Icon name="x"/>
+                  </span>}
+            </span>
+            <span className={c.ok ? '' : (c.severity === 'error' ? 'text-danger' : 'text-warning')}>
+              {c.label}
+            </span>
+            <span className="t-body-sm text-muted" style={{ marginLeft: 'auto' }}>
+              {c.detail}
+            </span>
+          </div>
+        ))}
+      </div>
+    </Card>
+  );
+}
+
 function SafetyPage() {
   const toast = useToast();
   const [data, setData] = useState(null);
@@ -1991,6 +2081,10 @@ function SafetyPage() {
             : `Erst ${dr.current_count}/${dr.min_required} dry-run Trades gesammelt. Live-Mode bleibt gesperrt (oder force:true im API-Call).`}
         </div>
       </div>
+
+      {/* Pre-Live Readiness Checklist — synthesis of everything below */}
+      <ReadinessChecklist data={data} />
+
 
       <div className="grid mb-16" style={{ gridTemplateColumns: '1fr 1fr', gap: 16 }}>
         {/* Cooldown */}
